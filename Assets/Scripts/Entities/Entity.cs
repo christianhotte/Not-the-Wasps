@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using HotteStuff;
 
 [System.Serializable]
 public class Entity : MonoBehaviour
@@ -17,10 +18,7 @@ public class Entity : MonoBehaviour
         internal Rigidbody2D rb = null;         //This entity's rigidbody component
 
     //VARIABLES:
-        //Input Variables:
         //Physics Variables:
-        private float realMomentum;                //Current quantity of linear motion in entity
-        private float realAngularMomentum;         //Current quantity of angular motion in entity
         internal Vector2 velocity = new Vector2(); //Current linear velocity vector in world space (does NOT indicate facing direction)
         internal float angularVelocity = 0;        //Current angular velocity in world space (negative if counter-clockwise)
         internal float netMass;                    //Current total mass of entity and all attached equipment/entities
@@ -69,10 +67,6 @@ public class Entity : MonoBehaviour
         //Modify Entity Position:
         transform.position += velocity.V3(); //Apply linear velocity to position
         AddAngularVelocity(angularVelocity); //Apply angular velocity to rotation
-
-        //Check Momentum Values:
-        realMomentum = velocity.magnitude * netMass;     //Get linear momentum
-        realAngularMomentum = angularVelocity * netMass; //Get angular momentum
 
         //..Xx Sub-Methods xX...............................................................................
         void AddAngularVelocity(float addVel)

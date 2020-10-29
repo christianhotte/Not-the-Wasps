@@ -9,7 +9,6 @@ public class PlayerPhysicsProperties : ScriptableObject
      *             prototyping).
      */
 
-    public float baseMass; //Player entity's base mass, which affects all control properties
     [Header("Basic Movement:")]
     public float maxVelocity;  //Player's maximum controllable speed (in units per second)
     public float baseAccel;    //Player base (simple) acceleration (in delta units per second)

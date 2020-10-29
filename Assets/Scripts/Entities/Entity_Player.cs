@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Cinemachine;
+using HotteStuff;
 
 public class Entity_Player : Entity
 {
@@ -57,7 +58,7 @@ public class Entity_Player : Entity
     [Header("Runtime Stats:")]
     public RotationMode rotationMode; //Player's current rotation mode (determines which factors are currently affecting player rotation)
     [ShowOnly] public int momentumTier = 0; //MOMENTUM: Player energy. Central to combat
-    public Equipment_Arm.Intercept[] intercepts; //Active intercepts with this player's equipped arms
+    public List<Equipment_Arm.Intercept> intercepts = new List<Equipment_Arm.Intercept>(); //Active intercepts with this player's equipped arms
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void Update()
@@ -92,10 +93,6 @@ public class Entity_Player : Entity
         {
             Debug.LogError("Player is missing physics settings"); //Log error
         }
-
-        //Variable Inits:
-        netMass = physicsSettings.baseMass; //Set initial total mass to base mass defined in player settings
-
     }
     private void GetMoveInput()
     {
@@ -115,8 +112,8 @@ public class Entity_Player : Entity
         //ROTATION: Get rotational input vector
         Vector2 mousePos = Input.mousePosition; //Get mouse position in screen space
         Vector2 playerPos = mainCamera.WorldToScreenPoint(transform.position); //Get player position in screen space
-        Vector2 rotInputVector = ExtensionMethods.AngleBetween(playerPos, mousePos); //Get vector for angle between player and mouse position
-        rotationalInput = -ExtensionMethods.LookAt2D(Vector2.zero, rotInputVector); //Get angle from found vector
+        Vector2 rotInputVector = HotteMath.AngleBetween(playerPos, mousePos); //Get vector for angle between player and mouse position
+        rotationalInput = -HotteMath.LookAt2D(Vector2.zero, rotInputVector); //Get angle from found vector
         rotationalInput += transform.rotation.eulerAngles.z; //Factor in rotation of player
         while (rotationalInput > 180) rotationalInput -= 360; //Wrap input around until it fits within -180-180 scale
         rotationalInput = -rotationalInput.Map(-180, 180, -1, 1); //Remap found value to more easily-readable scale
@@ -240,7 +237,7 @@ public class Entity_Player : Entity
             else if (rotationMode == RotationMode.Free) //FREE: If player rotation is currently unlocked...
             {
                 float targetVel = GetMomentumTierVel(momentumTier) * Time.fixedDeltaTime; //Get shorthand for target velocity
-                if (!ExtensionMethods.Approx(angularVelocity, targetVel, physicsSettings.momentumSnapThresh)) //If velocity is not currently where it should be for player's momentum tier...
+                if (!HotteMath.Approx(angularVelocity, targetVel, physicsSettings.momentumSnapThresh)) //If velocity is not currently where it should be for player's momentum tier...
                 {
                     newAngVelocity = Mathf.Lerp(angularVelocity, targetVel, physicsSettings.momentumSnapStiffness); //Lerp velocity toward target for given tier
                 }
@@ -264,7 +261,7 @@ public class Entity_Player : Entity
 
             //Apply Scaling Factors:
             actualAccel *= Time.fixedDeltaTime; //Scale acceleration to game time (UpdatePhysics should be called in FixedUpdate)
-            actualAccel *= ExtensionMethods.Mean(new float[] { transform.localScale.x, transform.localScale.y }); //Scale acceleration to actual size of player object (preventing settings from being fixed to character scale)
+            actualAccel *= HotteMath.Mean(new float[] { transform.localScale.x, transform.localScale.y }); //Scale acceleration to actual size of player object (preventing settings from being fixed to character scale)
 
             //Cleanup
             return actualAccel; //Return scaled acceleration value

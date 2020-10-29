@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Equipment_Arm_TestClaw : Equipment_Arm
+public class Arm_TestClaw : Equipment_Arm
 {
     /*  TEST CLAW: Default arm equipment with no special abilities, used for testing purposes
      */
@@ -14,19 +14,19 @@ public class Equipment_Arm_TestClaw : Equipment_Arm
     //VARIABLES:
 
 //==|CORE LOOPS|==--------------------------------------------------------------------------------------------------------
-    private void Start()
+    public override void Start()
     {
-        Initialize(); //Initialize equipment
+        base.Start(); //Call base start function
     }
 
-    private void Update()
+    public override void Update()
     {
-        CheckForIntercepts(); //Check for any intercepts with enemies
+        base.Update(); //Call base update function
     }
 
-    private void FixedUpdate()
+    public override void FixedUpdate()
     {
-        
+        base.FixedUpdate(); //Call base fixedUpdate function
     }
 
     //==|COMBAT ABILITIES|==--------------------------------------------------------------------------------------------------

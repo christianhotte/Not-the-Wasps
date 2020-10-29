@@ -2,10 +2,33 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public static class ExtensionMethods
+namespace HotteStuff
 {
-//---<|Debug Tools|>--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+public static class HotteDebug //--<<<|Expanded Debugging|>>>------------------------------------------------------------|
+{
+    //Basic:
+    public static void Oog()
+    {
+        //USE: Prints a marker in console to indicate that a line of code has been executed
 
+        //CREDIT: Created by Christian Hotte
+
+        Debug.Log("Oog"); //Log oog
+    }
+    public static void Print(this object value)
+    {
+        //USE: Prints given value (shorter + quicker than normal debug)
+
+        //CREDIT: Created by Christian Hotte
+
+        if (value.ToString() == "") //If value does not translate directly to printable string...
+        {
+            Debug.LogError("Attempted to print unprintable value."); //Log error
+            return; //Cancel function
+        }
+        Debug.Log(value); //Log value in console
+    }
+    //Drawing:
     public static Vector2 DrawCircle(this Vector2 center, float radius, int sides)
     {
         //USE: Extends Vector2. Works similarly to Debug.DrawLine except it draws a 2D circle (using given Vector2 as center)
@@ -13,25 +36,25 @@ public static class ExtensionMethods
         //CREDIT: Created by Christian Hotte
 
         //Initializations:
-            Vector2[] points = new Vector2[sides];     //Initialize list of all points in circle (size is equal to number of sides)
-            Vector2 refPoint = new Vector2(0, radius); //Initialize reference point from which to extrapolate all other points
-            float refAngle = 360 / sides;              //Initialize angle of each point vector from the point before it as a fraction of circle based on number of sides
-        //Find Points:
-            for (int x = 0; x < sides; x++) //Parse through each point in circle...
-            {
-                float angle = refAngle * x; //Get actual angle of point based on its order in point array
-                Vector2 point = refPoint.Rotate(angle); //Get base vector of point at given radius
-                points[x] = point + center; //Position rotated point relative to center and add to point array
-            }
+        Vector2[] points = new Vector2[sides];     //Initialize list of all points in circle (size is equal to number of sides)
+        Vector2 refPoint = new Vector2(0, radius); //Initialize reference point from which to extrapolate all other points
+        float refAngle = 360 / sides;              //Initialize angle of each point vector from the point before it as a fraction of circle based on number of sides
+                                                    //Find Points:
+        for (int x = 0; x < sides; x++) //Parse through each point in circle...
+        {
+            float angle = refAngle * x; //Get actual angle of point based on its order in point array
+            Vector2 point = refPoint.Rotate(angle); //Get base vector of point at given radius
+            points[x] = point + center; //Position rotated point relative to center and add to point array
+        }
         //Draw Sides:
-            for (int x = 0; x < sides; x++) //Parse through each point in circle...
-            {
-                int nextPointIndex = x + 1; //Get index of next connecting point in line
-                if (nextPointIndex >= sides) nextPointIndex = 0; //Overflow if necessary
-                Debug.DrawLine(points[x], points[nextPointIndex]); //Draw line between each consecutive pair of points
-            }
+        for (int x = 0; x < sides; x++) //Parse through each point in circle...
+        {
+            int nextPointIndex = x + 1; //Get index of next connecting point in line
+            if (nextPointIndex >= sides) nextPointIndex = 0; //Overflow if necessary
+            Debug.DrawLine(points[x], points[nextPointIndex]); //Draw line between each consecutive pair of points
+        }
         //Cleanup:
-            return center; //Pass center through (in case user wants to stick this on the end of an already-working line)
+        return center; //Pass center through (in case user wants to stick this on the end of an already-working line)
     }
     public static Vector2 DrawCircle(this Vector2 center, float radius, int sides, Color color)
     {
@@ -40,25 +63,25 @@ public static class ExtensionMethods
         //CREDIT: Created by Christian Hotte
 
         //Initializations:
-            Vector2[] points = new Vector2[sides];     //Initialize list of all points in circle (size is equal to number of sides)
-            Vector2 refPoint = new Vector2(0, radius); //Initialize reference point from which to extrapolate all other points
-            float refAngle = 360 / sides;              //Initialize angle of each point vector from the point before it as a fraction of circle based on number of sides
-        //Find Points:
-            for (int x = 0; x < sides; x++) //Parse through each point in circle...
-            {
-                float angle = refAngle * x; //Get actual angle of point based on its order in point array
-                Vector2 point = refPoint.Rotate(angle); //Get base vector of point at given radius
-                points[x] = point + center; //Position rotated point relative to center and add to point array
-            }
+        Vector2[] points = new Vector2[sides];     //Initialize list of all points in circle (size is equal to number of sides)
+        Vector2 refPoint = new Vector2(0, radius); //Initialize reference point from which to extrapolate all other points
+        float refAngle = 360 / sides;              //Initialize angle of each point vector from the point before it as a fraction of circle based on number of sides
+                                                    //Find Points:
+        for (int x = 0; x < sides; x++) //Parse through each point in circle...
+        {
+            float angle = refAngle * x; //Get actual angle of point based on its order in point array
+            Vector2 point = refPoint.Rotate(angle); //Get base vector of point at given radius
+            points[x] = point + center; //Position rotated point relative to center and add to point array
+        }
         //Draw Sides:
-            for (int x = 0; x < sides; x++) //Parse through each point in circle...
-            {
-                int nextPointIndex = x + 1; //Get index of next connecting point in line
-                if (nextPointIndex >= sides) nextPointIndex = 0; //Overflow if necessary
-                Debug.DrawLine(points[x], points[nextPointIndex], color); //Draw line between each consecutive pair of points (add color)
-            }
+        for (int x = 0; x < sides; x++) //Parse through each point in circle...
+        {
+            int nextPointIndex = x + 1; //Get index of next connecting point in line
+            if (nextPointIndex >= sides) nextPointIndex = 0; //Overflow if necessary
+            Debug.DrawLine(points[x], points[nextPointIndex], color); //Draw line between each consecutive pair of points (add color)
+        }
         //Cleanup:
-            return center; //Pass center through (in case user wants to stick this on the end of an already-working line)
+        return center; //Pass center through (in case user wants to stick this on the end of an already-working line)
     }
     public static void DrawRect(this Rect rectangle, Color color)
     {
@@ -72,14 +95,14 @@ public static class ExtensionMethods
         Vector2 botRight = new Vector2(rectangle.xMax, rectangle.yMin); //Bottom right corner point
         Vector2 botLeft = new Vector2(rectangle.xMin, rectangle.yMin); //Bottom left corner point
         Vector2[] corners = { topLeft, topRight, botRight, botLeft }; //Place all four corners in array
-        //Draw Sides:
+                                                                        //Draw Sides:
         for (int x = 0; x < corners.Length; x++) //Parse through list of corners...
         {
             //Initialization:
             int nextCornerIndex = x + 1; if (nextCornerIndex >= corners.Length) nextCornerIndex = 0; //Get index of corner after this corner
             Vector2 corner1 = corners[x]; //Get primary corner location
             Vector2 corner2 = corners[nextCornerIndex]; //Get secondary corner location
-            //Draw Side:
+                                                        //Draw Side:
             Debug.DrawLine(corner1, corner2, color); //Draw line between each two consecutive sides and in the specified color
         }
     }
@@ -96,14 +119,14 @@ public static class ExtensionMethods
         Vector2 botRight = new Vector2(rectangle.xMax, rectangle.yMin); //Bottom right corner point
         Vector2 botLeft = new Vector2(rectangle.xMin, rectangle.yMin); //Bottom left corner point
         Vector2[] corners = { topLeft, topRight, botRight, botLeft }; //Place all four corners in array
-        //Draw Sides:
+                                                                        //Draw Sides:
         for (int x = 0; x < corners.Length; x++) //Parse through list of corners...
         {
             //Initialization:
             int nextCornerIndex = x + 1; if (nextCornerIndex >= corners.Length) nextCornerIndex = 0; //Get index of corner after this corner
             Vector2 corner1 = corners[x]; //Get primary corner location
             Vector2 corner2 = corners[nextCornerIndex]; //Get secondary corner location
-            //Draw Side:
+                                                        //Draw Side:
             Debug.DrawLine(corner1, corner2, color); //Draw line between each two consecutive sides and in the specified color
         }
     }
@@ -119,14 +142,14 @@ public static class ExtensionMethods
         Vector2 botRight = new Vector2(rectangle.xMax, rectangle.yMin); //Bottom right corner point
         Vector2 botLeft = new Vector2(rectangle.xMin, rectangle.yMin); //Bottom left corner point
         Vector2[] corners = { topLeft, topRight, botRight, botLeft }; //Place all four corners in array
-        //Draw Sides:
+                                                                        //Draw Sides:
         for (int x = 0; x < corners.Length; x++) //Parse through list of corners...
         {
             //Initialization:
             int nextCornerIndex = x + 1; if (nextCornerIndex >= corners.Length) nextCornerIndex = 0; //Get index of corner after this corner
             Vector2 corner1 = corners[x]; //Get primary corner location
             Vector2 corner2 = corners[nextCornerIndex]; //Get secondary corner location
-            //Draw Side:
+                                                        //Draw Side:
             Debug.DrawLine(corner1, corner2, color, duration); //Draw line between each two consecutive sides and in the specified color
         }
     }
@@ -143,27 +166,20 @@ public static class ExtensionMethods
         Vector2 botRight = new Vector2(rectangle.xMax, rectangle.yMin); //Bottom right corner point
         Vector2 botLeft = new Vector2(rectangle.xMin, rectangle.yMin); //Bottom left corner point
         Vector2[] corners = { topLeft, topRight, botRight, botLeft }; //Place all four corners in array
-        //Draw Sides:
+                                                                        //Draw Sides:
         for (int x = 0; x < corners.Length; x++) //Parse through list of corners...
         {
             //Initialization:
             int nextCornerIndex = x + 1; if (nextCornerIndex >= corners.Length) nextCornerIndex = 0; //Get index of corner after this corner
             Vector2 corner1 = corners[x]; //Get primary corner location
             Vector2 corner2 = corners[nextCornerIndex]; //Get secondary corner location
-            //Draw Side:
+                                                        //Draw Side:
             Debug.DrawLine(corner1, corner2, color, duration); //Draw line between each two consecutive sides and in the specified color
         }
     }
-    public static void Oog()
-    {
-        //USE: Prints a marker in console to indicate that this line of code has been executed
-
-        //CREDIT: Created by Christian Hotte
-
-        Debug.Log("Oog"); //Log oog
-    }
-
-//---<|Math Functions|>-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+}
+public static class HotteMath //--<<<|More Math|>>>----------------------------------------------------------------------|
+{
     //Basic:
     public static float Map(this float value, float fromMin, float fromMax, float toMin, float toMax)
     {
@@ -253,8 +269,9 @@ public static class ExtensionMethods
         if (difference > error) return false; //If difference is greater than given error, return false
         else return true; //Otherwise, values are within given range of each other, so return true
     }
-
-//---<|Conversion Operations|>----------------------------------------------------------------------------------------------------------------------------------------------------------------
+}
+public static class HotteConversions //--<<<|Convenient Type Alchemy|>>>-------------------------------------------------|
+{
     public static Rect BoundsToRect(this Bounds bounds)
     {
         //USE: Extends Bounds. Converts bounds into more granular rect
@@ -271,8 +288,9 @@ public static class ExtensionMethods
 
         return new Vector3(v.x, v.y, 0);
     }
-
-//---<|Other/Uncategorized|>------------------------------------------------------------------------------------------------------------------------------------------------------------------
+}
+public static class HotteFind //--<<<|Finding Things in Things|>>>-------------------------------------------------------|
+{
     public static GameObject FindInList(this List<Transform> list, string n)
     {
         //USE: Finds an object by name in a list
@@ -324,16 +342,6 @@ public static class ExtensionMethods
         }
         return foundItem; //Return result
     }
-
-//---<|DEPRECATED|>---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    /* public static float Remap(this float value, float from1, float to1, float from2, float to2)
-        {
-            //USE: Maps a variable from one range to another
-
-            //CREDIT: This code is borrowed wholesale from Unity forums user Jessy: https://forum.unity.com/threads/re-map-a-number-from-one-range-to-another.119437/
-
-            return (value - from1) / (to1 - from1) * (to2 - from2) + from2;
-        }
-    */
-
 }
+}
+

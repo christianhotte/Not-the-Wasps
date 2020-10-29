@@ -13,10 +13,28 @@ public class NPC_Enemy : Entity_NPC
 
     //OBJECTS & COMPONENTS:
     private Entity_Player player; //PlayerController script, needs to be known by enemies
+    public Collider2D interceptField; //Area where enemy is able to be intercepted by player
 
     //VARIABLES:
     [Header("Combat Status:")]
-    [ShowOnly] public bool grappled = false; //Whether or not this enemy is currently being grappled by player
+    [ShowOnly] public bool intercepted = false; //Whether or not this enemy is currently in attack range
+    [ShowOnly] public bool grappled = false;    //Whether or not this enemy is currently being grappled by player
+
+//==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
+    public override void Start()
+    {
+        base.Start(); //Call base method
+    }
+
+    public override void Update()
+    {
+        base.Update(); //Call base method
+    }
+
+    public override void FixedUpdate()
+    {
+        base.FixedUpdate(); //Call base method
+    }
 
 //==|CORE FUNCTIONS|==---------------------------------------------------------------------------------------------
     public override void Initialize()
@@ -32,6 +50,10 @@ public class NPC_Enemy : Entity_NPC
         if (player == null) //If player could not be found...
         {
             Debug.LogError(name + " could not identify player."); //Log error
+        }
+        if (interceptField == null) //If enemy does not have an intercept field...
+        {
+            Debug.LogError(name + " does not have an intercept field assigned."); //Log error
         }
 
     }
