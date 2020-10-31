@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class NPC_Enemy : Entity_NPC
+public class Entity_Enemy : Entity
 {
     /*  Description: Defines an entity able to attack and be attacked by the player.  Includes functions which
      *               expand NPC AI and interact with player combat abilities

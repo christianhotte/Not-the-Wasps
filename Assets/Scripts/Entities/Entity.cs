@@ -11,6 +11,12 @@ public class Entity : MonoBehaviour
      */             
 
     //CLASSES, ENUMS & STRUCTS:
+    public enum LocomotionType //Different methods an entity can use to move
+    {
+        Impulse, //IMPULSE: Standard locomotion system, uses acceleration variables to update motion regularly
+        Pathed,  //PATHED: Simpler locomotion system, uses given paths and interpolation variables to move entity along given track
+        Static   //STATIC: No locomotion system, entity is not moved by MoveEntity
+    }
 
     //OBJECTS & COMPONENTS:
         //Core Components:
@@ -20,6 +26,8 @@ public class Entity : MonoBehaviour
         //Physics Variables:
         internal Vector2 velocity = new Vector2(); //Current linear velocity vector in world space (does NOT indicate facing direction)
         internal float angularVelocity = 0;        //Current angular velocity in world space (negative if counter-clockwise)
+        //Entity Settings:
+        internal LocomotionType currentMoveType; //This entity's current movement type
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public virtual void Start()
@@ -52,7 +60,23 @@ public class Entity : MonoBehaviour
         }
 
     }
-    public virtual void MoveEntity()
+    private void MoveEntity()
+    {
+        //Description: NPC-specific changes to base MoveEntity function (structured around locomotion types)
+
+        switch (currentMoveType)
+        {
+            case LocomotionType.Impulse: //IMPULSE: Move entity using standard impulse locomotion system
+                MoveEntityImpulse(); //Call physics-based entity mover function
+                break;
+            case LocomotionType.Pathed: //PATHED: Move entity using a given path object
+                MoveEntityPathed(); //Call special pathed movement function instead of base function
+                break;
+            default:
+                return; //Skip MoveEntity functions if entity move mode is Static or unaccounted-for
+        }
+    }
+    private void MoveEntityImpulse()
     {
         //Description: Modifies position of entity based on current physics properties
 
@@ -69,6 +93,12 @@ public class Entity : MonoBehaviour
             newRotation.z += addVel * timeKeeper.timeScale; //Add velocity to current rotation (scale from degrees to percentages)
             transform.rotation = Quaternion.Euler(newRotation); //Apply new rotation to transform
         }
+    }
+    private void MoveEntityPathed()
+    {
+        //Description: Moves entity along given path based on some physics settings and interpolant variables
+
+
     }
 
 }

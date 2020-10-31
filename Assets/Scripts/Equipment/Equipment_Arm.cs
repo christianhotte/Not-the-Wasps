@@ -37,7 +37,7 @@ public class Equipment_Arm : Equipment
     //Runtime Status Variables:
     public Direction armSide; //Which side this arm is meant to be equipped on
     private ArmState armState; //This arm's current combat state
-    private NPC_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
+    private Entity_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void FixedUpdate()
@@ -100,7 +100,7 @@ public class Equipment_Arm : Equipment
     }
 
 //==|COMBAT EVENTS|==----------------------------------------------------------------------------------------------
-    public virtual void Grapple(NPC_Enemy enemy)
+    public virtual void Grapple(Entity_Enemy enemy)
     {
         /*  GRAPPLE: Catch an enemy, subduing it and allowing you to use its momentum for other abilities
          *      Conditions: Player must COUNTER INTO enemy direction of travel (from front or back)
@@ -113,7 +113,7 @@ public class Equipment_Arm : Equipment
         grappledEnemy.grappled = true; //Indicate to enemy that it has been grappled
 
         //Override Enemy Movement:
-        grappledEnemy.locomotionType = Entity_NPC.NPCLocomotionType.Static; //Change enemy move mode to static
+        grappledEnemy.currentMoveType = Entity.LocomotionType.Static; //Change enemy move mode to static
         grappledEnemy.velocity = Vector2.zero;      //Cancel enemy velocity
         grappledEnemy.angularVelocity = 0;          //Cancel enemy angular velocity
         grappledEnemy.transform.parent = transform; //Make this arm enemy's parent
@@ -137,7 +137,7 @@ public class Equipment_Arm : Equipment
         if (armState != ArmState.Grappling) return false; //If arm is not currently grappling, abort release
 
         //Restore Enemy Movement:
-        grappledEnemy.locomotionType = Entity_NPC.NPCLocomotionType.Impulse; //Restore enemy movement state
+        grappledEnemy.currentMoveType = Entity.LocomotionType.Impulse; //Restore enemy movement state
         grappledEnemy.transform.parent = null; //Remove enemy from this arm's list of children
 
         //Disconnect Variable Links:
@@ -155,14 +155,14 @@ public class Equipment_Arm : Equipment
          */
 
         //Initial Release:
-        NPC_Enemy enemy = grappledEnemy; //Save grappled enemy controller before initial release
+        Entity_Enemy enemy = grappledEnemy; //Save grappled enemy controller before initial release
         if (!Release()) return; //Run enemy release function, check if it executes. If not, abort this function
 
         //Set Enemy as Projectile:
 
 
     }
-    public virtual void Clothesline(NPC_Enemy[] enemies)
+    public virtual void Clothesline(Entity_Enemy[] enemies)
     {
         /*  CLOTHESLINE: Swipe an enemy with this arm, dealing damage to it while preserving its direction of motion
          *      Conditions: Player must COUNTER enemy AGAINST direction of rotation (from front)
@@ -171,7 +171,7 @@ public class Equipment_Arm : Equipment
 
 
     }
-    public virtual void Backhand(NPC_Enemy[] enemies)
+    public virtual void Backhand(Entity_Enemy[] enemies)
     {
         /*  BACKHAND: Strike an enemy with this arm, dealing damage, redirecting the enemy, and reversing player rotation
          *      Conditions: Player must COUNTER enemy AGAINST direction of rotation (from back)

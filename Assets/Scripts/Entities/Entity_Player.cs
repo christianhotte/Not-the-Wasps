@@ -68,6 +68,10 @@ public class Entity_Player : Entity
         {
             Debug.LogError("Player is missing physics settings"); //Log error
         }
+
+        //Establish Starting Variables:
+        currentMoveType = LocomotionType.Impulse; //Set player's initial movement type to impulse
+
     }
     private void GetMoveInput()
     {
