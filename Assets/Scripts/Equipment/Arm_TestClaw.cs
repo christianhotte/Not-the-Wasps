@@ -30,7 +30,7 @@ public class Arm_TestClaw : Equipment_Arm
     }
 
     //==|COMBAT ABILITIES|==--------------------------------------------------------------------------------------------------
-    /*public override void Grapple()
+    /*public override void Grapple(Intercept intercept)
     {
         base.Grapple(); //Call base method
 
@@ -45,12 +45,12 @@ public class Arm_TestClaw : Equipment_Arm
         base.Throw(); //Call base method
 
     }*/
-    /*public override void Clothesline()
+    /*public override void Clothesline(Intercept intercept)
     {
         base.Clothesline(); //Call base method
 
     }*/
-    /*public override void Backhand()
+    /*public override void Backhand(Intercept intercept)
     {
         base.Backhand(); //Call base method
 

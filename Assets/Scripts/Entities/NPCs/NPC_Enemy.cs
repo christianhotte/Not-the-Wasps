@@ -13,7 +13,7 @@ public class NPC_Enemy : Entity_NPC
 
     //OBJECTS & COMPONENTS:
     private Entity_Player player; //PlayerController script, needs to be known by enemies
-    public Collider2D interceptField; //Area where enemy is able to be intercepted by player
+    public Collider2D dangerZone; //Area which triggers player interception
 
     //VARIABLES:
     [Header("Combat Status:")]
@@ -51,7 +51,7 @@ public class NPC_Enemy : Entity_NPC
         {
             Debug.LogError(name + " could not identify player."); //Log error
         }
-        if (interceptField == null) //If enemy does not have an intercept field...
+        if (dangerZone == null) //If enemy does not have an intercept field...
         {
             Debug.LogError(name + " does not have an intercept field assigned."); //Log error
         }

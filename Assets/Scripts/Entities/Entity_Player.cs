@@ -19,28 +19,6 @@ public class Entity_Player : Entity
         public Vector2 moveDirection; //Linear movement input direction (usually normalized)
         public float spinDirection;   //Angular movement input value ((-1)-1)
     }
-    public struct CombatInput
-    {
-        //Description: Structure for storing input data used to determine player combat interactions
-
-        //Constructor:
-        public CombatInput(bool l, bool r, bool s)
-        {
-            leftLean = l;  //Assign leftLean input value
-            rightLean = r; //Assign rightLean input value
-            sting = s;     //Assign sting input value
-        }
-
-        //Variables:
-        public bool leftLean;  //True if player is holding input button for leaning left (variable combat ability)
-        public bool rightLean; //True if player is holding input button for leaning right (variable combat ability)
-        public bool sting;     //True if player is holding input button for activating stinger ability
-    }
-    public enum RotationMode //Describes different control modes governing player rotation
-    {
-        Controlled, //Player is being directly rotated by mouse, Momentum is zero
-        Free,       //Player rotation is unlocked and is being controlled by Momentum
-    };
 
     //OBJECTS & COMPONENTS:
     private Camera mainCamera = null; //The scene's Main Camera component
@@ -49,16 +27,13 @@ public class Entity_Player : Entity
     //VARIABLES:
     //Input Variables:
     private MoveInput moveInput; //The input information this entity is currently using
-    private CombatInput combatInput; //Player's current combat inputs
+    
 
     [Header("Equipment:")]
     public Equipment_Arm leftArm;  //Player's currently-equipped left arm
     public Equipment_Arm rightArm; //Player's currently-equipped right arm
         
-    [Header("Runtime Stats:")]
-    public RotationMode rotationMode; //Player's current rotation mode (determines which factors are currently affecting player rotation)
-    [ShowOnly] public int momentumTier = 0; //MOMENTUM: Player energy. Central to combat
-    public List<Equipment_Arm.Intercept> intercepts = new List<Equipment_Arm.Intercept>(); //Active intercepts with this player's equipped arms
+    //[Header("Runtime Data:")]
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void Update()
@@ -138,37 +113,7 @@ public class Entity_Player : Entity
             Debug.LogError("Player is missing arm equipment"); //Log error
             return; //Skip remainder of function to prevent further errors
         }
-        CombatInput prevCombatInput = combatInput; //Save current combat inputs as previous input values
-        bool newLeftLean = false;  //Initialize value to store new left lean input
-        bool newRightLean = false; //Initialize value to store new right lean input
-        bool newSting = false;     //Initialize value to store new sting input
-
-        //Get New Inputs:
-        if (Input.GetKey(KeyCode.Mouse0)) newLeftLean = true;  //Get current left lean input
-        if (Input.GetKey(KeyCode.Mouse1)) newRightLean = true; //Get current right lean input
-        if (Input.GetKey(KeyCode.Mouse2)) newSting = true;     //Get current sting input
-        combatInput = new CombatInput(newLeftLean, newRightLean, newSting); //Store new input variables
-
-        //Register Combat Input Events:
-        SendMessageOptions drr = SendMessageOptions.DontRequireReceiver; //Initialize messageoptions shorthand
-        if (newLeftLean != prevCombatInput.leftLean) //Change in leftLean input detected...
-        {
-            if (newLeftLean) BroadcastMessage("OnLeftLeanButtonDown", drr); //Signal that leftLean button has been pressed
-            else             BroadcastMessage("OnLeftLeanButtonUp", drr);   //Signal that leftLean button has been released
-        }
-        if (newRightLean != prevCombatInput.rightLean) //Change in rightLean input detected...
-        {
-            if (newRightLean) BroadcastMessage("OnRightLeanButtonDown", drr); //Signal that rightLean button has been pressed
-            else              BroadcastMessage("OnRightLeanButtonUp", drr);   //Signal that rightLean button has been released
-        }
-        if (newSting != prevCombatInput.sting) //Change in sting input detected...
-        {
-            if (newSting) BroadcastMessage("OnStingButtonDown", drr); //Signal that sting button has been pressed
-            else          BroadcastMessage("OnStingButtonUp", drr);   //Signal that sting button has been released
-        }
-
-        //..Xx Debuggers xX.................................................................................
-
+        
     }
     private void UpdatePhysics()
     {
@@ -178,17 +123,14 @@ public class Entity_Player : Entity
             //Initialization & Validation:
             Vector2 newVelocity = velocity; //Initialize vector for calculating final updated velocity
             Vector2 inputAccelDirection;    //Initialize vector for factoring direction into acceleration vector
-            float strafeModifier = 1;       //Initialize variable for factoring strafe direction into velocity calculations
+            float strafeModifier;           //Initialize variable for factoring strafe direction into velocity calculations
 
             //Calculate Strafing Modifier:
-            if (rotationMode == RotationMode.Controlled)
-            {
-                Vector2 moveDirection = moveInput.moveDirection.normalized; //Get direction of input
-                Vector2 faceDirection = Vector2.up.Rotate(transform.rotation.eulerAngles.z); //Get player entity is pointing
-                float strafeAngle = -Vector2.SignedAngle(faceDirection, moveDirection); //Get angle disparity between facing direction and direction of acceleration
-                strafeAngle = strafeAngle.Map(-180, 180, -1, 1); //Map angle into more AnimationCurve-friendly values
-                strafeModifier = physicsSettings.strafeVelFalloff.Evaluate(Mathf.Abs(strafeAngle)); //Get modifier from physicsSettings
-            } 
+            Vector2 moveDirection = moveInput.moveDirection.normalized; //Get direction of input
+            Vector2 faceDirection = Vector2.up.Rotate(transform.rotation.eulerAngles.z); //Get player entity is pointing
+            float strafeAngle = -Vector2.SignedAngle(faceDirection, moveDirection); //Get angle disparity between facing direction and direction of acceleration
+            strafeAngle = strafeAngle.Map(-180, 180, -1, 1); //Map angle into more AnimationCurve-friendly values
+            strafeModifier = physicsSettings.strafeVelFalloff.Evaluate(Mathf.Abs(strafeAngle)); //Get modifier from physicsSettings
 
             //Calculate Input:
             if (moveInput.moveDirection != Vector2.zero) //If directional input from player is detected...
@@ -219,33 +161,18 @@ public class Entity_Player : Entity
 
         //ANGULAR VELOCITY:
             //Initialization & Validation:
-            float newAngVelocity = angularVelocity; //Initializa variable for calculating final velocity   
+            float newAngVelocity; //Initializa variable for calculating final velocity   
 
-            //Calculate Input:
-            if (rotationMode == RotationMode.Controlled) //CONTROLLED: If player rotation is currently locked to mouse...
+            //Find Target Change:
+            float targetChange = moveInput.spinDirection.Map(-1, 1, -180, 180); //Initialize variable for finding target change in degrees for this rotation (starting with current mouse angle from player)
+            targetChange = Mathf.Lerp(0, targetChange, physicsSettings.mouseTurnStiffness); //Find actual target change (in degrees) based on player physics settings
+            if (Mathf.Abs(targetChange) > physicsSettings.maxControlAngVel * Time.fixedDeltaTime) //If target change exceeds maximum controlled angular velocity...
             {
-                //Find Target Change:
-                float targetChange = moveInput.spinDirection.Map(-1, 1, -180, 180); //Initialize variable for finding target change in degrees for this rotation (starting with current mouse angle from player)
-                targetChange = Mathf.Lerp(0, targetChange, physicsSettings.mouseTurnStiffness); //Find actual target change (in degrees) based on player physics settings
-                if (Mathf.Abs(targetChange) > physicsSettings.maxControlAngVel * Time.fixedDeltaTime) //If target change exceeds maximum controlled angular velocity...
-                {
-                    targetChange = physicsSettings.maxControlAngVel * Time.fixedDeltaTime * Mathf.Sign(targetChange); //Set change to max
-                }
-                //Apply to Velocity:
-                newAngVelocity = targetChange; //Set found change in degrees as new angular velocity
+                targetChange = physicsSettings.maxControlAngVel * Time.fixedDeltaTime * Mathf.Sign(targetChange); //Set change to max
             }
-            else if (rotationMode == RotationMode.Free) //FREE: If player rotation is currently unlocked...
-            {
-                float targetVel = GetMomentumTierVel(momentumTier) * Time.fixedDeltaTime; //Get shorthand for target velocity
-                if (!HotteMath.Approx(angularVelocity, targetVel, physicsSettings.momentumSnapThresh)) //If velocity is not currently where it should be for player's momentum tier...
-                {
-                    newAngVelocity = Mathf.Lerp(angularVelocity, targetVel, physicsSettings.momentumSnapStiffness); //Lerp velocity toward target for given tier
-                }
-                else //If angular velocity is more-or-less aligned with momentum tier...
-                {
-                    newAngVelocity = targetVel; //Set velocity to exact value for tier
-                }
-            }
+            
+            //Apply to Velocity:
+            newAngVelocity = targetChange; //Set found change in degrees as new angular velocity  
 
         //Cleanup:
         velocity = newVelocity;           //Update velocity vector
@@ -265,30 +192,6 @@ public class Entity_Player : Entity
 
             //Cleanup
             return actualAccel; //Return scaled acceleration value
-        }
-        float GetMomentumTierVel(int tier)
-        {
-            //Description: Finds velocity of given momentum tier in player physics settings
-
-            //Initialization & Validation:
-            if (tier == 0) return 0; //Teir zero will always have a velocity of 0, allowing the rest of the method to be skipped
-            float[] momentumTeirVels = physicsSettings.momentumTierVels; //Get shorthand for tier velocities
-            if (momentumTeirVels.Length == 0) //Check to make sure physicsSettings contain minimum data requirements...
-            {
-                Debug.LogError("Player does not have assigned momentum teir velocities."); //Log error
-                return 0; //Return zero to prevent crash
-            }
-            float foundVel = momentumTeirVels[momentumTeirVels.Length - 1]; //Initialize return variable to last item in given array (max momentum)
-
-            //Find Corresponding Velocity:
-            if (Mathf.Abs(tier) < momentumTeirVels.Length) //If tier has a corresponding velocity in given settings list...
-            {
-                foundVel = momentumTeirVels[Mathf.Abs(tier) - 1]; //Get velocity from corresponding item in array
-            }
-
-            //Cleanup:
-            foundVel *= Mathf.Sign(tier); //Carry over sign from tier (for negative rotation)
-            return foundVel; //Return found velocity corresponding with given momentum tier
         }
 
         //..Xx Debuggers xX.................................................................................
@@ -334,4 +237,99 @@ public class Entity_Player : Entity
             
             //Apply Factors to New Velocity:
             newAngVelocity += inputSpinAccelDirection; //Apply acceleration due to input
+     */
+    /* MOMENTUM TIER STUFF:
+        public enum RotationMode //Describes different control modes governing player rotation
+        {
+            Controlled, //Player is being directly rotated by mouse, Momentum is zero
+            Free,       //Player rotation is unlocked and is being controlled by Momentum
+        };
+     *  else if (rotationMode == RotationMode.Free) //FREE: If player rotation is currently unlocked...
+            {
+                float targetVel = GetMomentumTierVel(momentumTier) * Time.fixedDeltaTime; //Get shorthand for target velocity
+                if (!HotteMath.Approx(angularVelocity, targetVel, physicsSettings.momentumSnapThresh)) //If velocity is not currently where it should be for player's momentum tier...
+                {
+                    newAngVelocity = Mathf.Lerp(angularVelocity, targetVel, physicsSettings.momentumSnapStiffness); //Lerp velocity toward target for given tier
+                }
+                else //If angular velocity is more-or-less aligned with momentum tier...
+                {
+                    newAngVelocity = targetVel; //Set velocity to exact value for tier
+                }
+            }
+     *  float GetMomentumTierVel(int tier)
+        {
+            //Description: Finds velocity of given momentum tier in player physics settings
+
+            //Initialization & Validation:
+            if (tier == 0) return 0; //Teir zero will always have a velocity of 0, allowing the rest of the method to be skipped
+            float[] momentumTeirVels = physicsSettings.momentumTierVels; //Get shorthand for tier velocities
+            if (momentumTeirVels.Length == 0) //Check to make sure physicsSettings contain minimum data requirements...
+            {
+                Debug.LogError("Player does not have assigned momentum teir velocities."); //Log error
+                return 0; //Return zero to prevent crash
+            }
+            float foundVel = momentumTeirVels[momentumTeirVels.Length - 1]; //Initialize return variable to last item in given array (max momentum)
+
+            //Find Corresponding Velocity:
+            if (Mathf.Abs(tier) < momentumTeirVels.Length) //If tier has a corresponding velocity in given settings list...
+            {
+                foundVel = momentumTeirVels[Mathf.Abs(tier) - 1]; //Get velocity from corresponding item in array
+            }
+
+            //Cleanup:
+            foundVel *= Mathf.Sign(tier); //Carry over sign from tier (for negative rotation)
+            return foundVel; //Return found velocity corresponding with given momentum tier
+        }
+
+     */
+    /* COMBAT INPUT STUFF:
+     * public struct CombatInput
+    {
+        //Description: Structure for storing input data used to determine player combat interactions
+
+        //Constructor:
+        public CombatInput(bool grabInput, bool strikeInput, bool stingInput)
+        {
+            grab = grabInput;     //Assign grab input value
+            strike = strikeInput; //Assign strike input value
+            sting = stingInput;   //Assign sting input value
+        }
+
+        //Variables:
+        public bool grab;   //True if player is holding input button for grabbing
+        public bool strike; //True if player is holding input button for striking
+        public bool sting;  //True if player is holding input button for stinging
+    }
+     * private CombatInput combatInput; //Player's current combat inputs
+     * CombatInput prevCombatInput = combatInput; //Save current combat inputs as previous input values
+        bool newGrabInput = false;   //Initialize value to store new grab input
+        bool newStrikeInput = false; //Initialize value to store new strike input
+        bool newStingInput = false;  //Initialize value to store new sting input
+
+        //Get New Inputs:
+        if (Input.GetKey(KeyCode.Mouse0)) newGrabInput = true;   //Get current grab input
+        if (Input.GetKey(KeyCode.Mouse1)) newStrikeInput = true; //Get current strike input
+        if (Input.GetKey(KeyCode.Mouse2)) newStingInput = true;  //Get current sting input
+        combatInput = new CombatInput(newGrabInput, newStrikeInput, newStingInput); //Store new input variables
+
+        //Register Combat Input Events:
+        SendMessageOptions drr = SendMessageOptions.DontRequireReceiver; //Initialize messageoptions shorthand
+        if (newGrabInput) BroadcastMessage("OnGrabButton", drr);     //Signal that grab button is currently being held
+        if (newStrikeInput) BroadcastMessage("OnStrikeButton", drr); //Signal that strike button is currently being held
+        if (newStingInput) BroadcastMessage("OnStingButton", drr);   //Signal that sting button is currently being held
+        if (newGrabInput != prevCombatInput.grab) //Change in grab input detected...
+        {
+            if (newGrabInput) BroadcastMessage("OnGrabButtonDown", drr); //Signal that grab button has been pressed
+            else              BroadcastMessage("OnGrabButtonUp", drr);   //Signal that grab button has been released
+        }
+        if (newStrikeInput != prevCombatInput.strike) //Change in strike input detected...
+        {
+            if (newStrikeInput) BroadcastMessage("OnStrikeButtonDown", drr); //Signal that strike button has been pressed
+            else                BroadcastMessage("OnStrikeButtonUp", drr);   //Signal that strike button has been released
+        }
+        if (newStingInput != prevCombatInput.sting) //Change in sting input detected...
+        {
+            if (newStingInput) BroadcastMessage("OnStingButtonDown", drr); //Signal that sting button has been pressed
+            else               BroadcastMessage("OnStingButtonUp", drr);   //Signal that sting button has been released
+        }
      */

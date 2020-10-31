@@ -12,25 +12,6 @@ public class Equipment_Arm : Equipment
      */
 
     //CLASSES, ENUMS & STRUCTS:
-    [System.Serializable] public class Intercept
-    {
-        //Description: Contains data about an active intercept between an Arm and an enemy
-
-        //Core Components:
-        public Equipment_Arm arm;   //The arm involved with this intercept
-        public NPC_Enemy enemy;     //The enemy involved with this intercept
-        public Collider2D collider; //The enemy's interception area
-        //Intercept Data:
-        public Vector2 vector;               //Describes the total velocity and direction of this intercept (relative to player)
-        public InterceptDirection direction; //The combat-relevant direction of this intercept
-        public float duration = 0;           //The duration of this intercept so far (in seconds)
-    }
-    public enum InterceptDirection //Describes which direction an intercept occurs relative to player
-    {
-        HeadOn,  //Intercept is a head-on collision between player and enemy
-        Neutral, //Intercept does not clearly prefer a given direction
-        Rearward //Intercept where enemy hits player from behind
-    }
     public enum ArmState //Describes what combat state an arm can be in
     {
         Neutral,       //Arm is not currently engaged in any combat maneuvers
@@ -43,31 +24,26 @@ public class Equipment_Arm : Equipment
     [Header("Components:")]
     public Collider2D reachField;    //Collider determining this arm's reach
     public Transform grappleHoldPos; //Transform indicating where enemies will snap to when grappled
-    public Transform grabPoint;      //The "hand" of this arm, used to determine local velocity of arm
     public Equipment_Arm otherArm;   //The player's other arm (if this arm is equipped to a player with two arms)
 
     //VARIABLES:
-    [Header("Stats:")]
-    public float grappleTimeMod; //GRAPPLE TIME MODIFIER: Increases or decreases amount of time player can keep enemy grappled
+    //[Header("Stats:")]
 
     [Header("Mechanical Settings:")]
     [Range(0, 1)] public float grappleSnap; //Determines how quickly enemy snaps to known position when grappled
+    public float grappleSnapProx;           //Determines how close enemy must be to grabPoint for it to snap to designated position (when grappled)
+    public float minInterceptVel;           //Determines the minimum total velocity an intercept must have to register as directional (as opposed to neutral)
 
     //Runtime Status Variables:
     public Direction armSide; //Which side this arm is meant to be equipped on
     private ArmState armState; //This arm's current combat state
-    internal List<Intercept> intercepts = new List<Intercept>(); //This arm's current enemy intercepts
     private NPC_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
-
-    private Vector2 localVelocity; //This arm's local linear velocity (at its grab point)
-    private Vector2 prevWorldPos = Vector2.zero; //This arm's previous world position, used to determine linear velocity
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void FixedUpdate()
     {
         base.FixedUpdate(); //Call base fixedUpdate function
         UpdatePhysics(); //Update physics-related data on this piece of equipment
-        CheckForIntercepts(); //Check for any intercepts with enemies
     }
 
 //==|CORE ARM FUNCTIONS|==-----------------------------------------------------------------------------------------
@@ -116,16 +92,187 @@ public class Equipment_Arm : Equipment
     {
         //Description: Updates physics variables relating to this piece of equipment
 
+        //Initializations & Validations:
+        float timeScale = timeKeeper.timeScale; //Get shorthand for current timescale
+
         //Update Local Velocity:
-        localVelocity = (grabPoint.position - prevWorldPos.V3()) / Time.fixedDeltaTime; //Get linear velocity based on last position
-        prevWorldPos = grabPoint.position; //Log current position to memory
+
     }
-    public void CheckForIntercepts()
+
+//==|COMBAT EVENTS|==----------------------------------------------------------------------------------------------
+    public virtual void Grapple(NPC_Enemy enemy)
+    {
+        /*  GRAPPLE: Catch an enemy, subduing it and allowing you to use its momentum for other abilities
+         *      Conditions: Player must COUNTER INTO enemy direction of travel (from front or back)
+         *      Notes: Will only grapple the closest enemy to GrabPoint. Ignores other interceptions
+         */
+
+        //Initialize Grapple:
+        armState = ArmState.Grappling; //Indicate that this arm is now grappling an enemy
+        grappledEnemy = enemy;         //Get grappled enemy's controller
+        grappledEnemy.grappled = true; //Indicate to enemy that it has been grappled
+
+        //Override Enemy Movement:
+        grappledEnemy.locomotionType = Entity_NPC.NPCLocomotionType.Static; //Change enemy move mode to static
+        grappledEnemy.velocity = Vector2.zero;      //Cancel enemy velocity
+        grappledEnemy.angularVelocity = 0;          //Cancel enemy angular velocity
+        grappledEnemy.transform.parent = transform; //Make this arm enemy's parent
+
+        //Override Player Movement:
+            
+
+        //..Xx Debuggers xX.................................................................................
+        //Debug.Log(intercept.enemy.name + " successfully grappled!");
+    }
+    public virtual bool Release()
+    {
+        /*  RELEASE: Release a grappled enemy, doing no damage to it and leaving player vulnerable to counterattack
+         *      Conditions: -Player DOES NOT RELEASE enemy within given grapple time
+         *                  -OR player attempts to throw enemy at low velocity
+         *      Notes: Returns false if function did not execute successfully, true if otherwise
+         */
+
+        //Initialization & Validation:
+        if (grappledEnemy == null) return false; //If arm does not have grappled enemy, abort release
+        if (armState != ArmState.Grappling) return false; //If arm is not currently grappling, abort release
+
+        //Restore Enemy Movement:
+        grappledEnemy.locomotionType = Entity_NPC.NPCLocomotionType.Impulse; //Restore enemy movement state
+        grappledEnemy.transform.parent = null; //Remove enemy from this arm's list of children
+
+        //Disconnect Variable Links:
+        grappledEnemy.grappled = false; //Indicate to enemy that it is no longer grappled
+        grappledEnemy = null;           //Forget grappled enemy's controller
+        armState = ArmState.Neutral;    //Indicate that this arm has returned to neutral position
+
+        //Cleanup:
+        return true; //Confirm that function executed successfully
+    }
+    public virtual void Throw()
+    {
+        /*  THROW: Throw a grappled enemy, incapacitating it and turning it into a projectile
+         *      Conditions: Player RELEASES counter button with a grappled enemy in corresponding arm
+         */
+
+        //Initial Release:
+        NPC_Enemy enemy = grappledEnemy; //Save grappled enemy controller before initial release
+        if (!Release()) return; //Run enemy release function, check if it executes. If not, abort this function
+
+        //Set Enemy as Projectile:
+
+
+    }
+    public virtual void Clothesline(NPC_Enemy[] enemies)
+    {
+        /*  CLOTHESLINE: Swipe an enemy with this arm, dealing damage to it while preserving its direction of motion
+         *      Conditions: Player must COUNTER enemy AGAINST direction of rotation (from front)
+         *      Notes: Will affect every enemy currently intercepted by this arm
+         */
+
+
+    }
+    public virtual void Backhand(NPC_Enemy[] enemies)
+    {
+        /*  BACKHAND: Strike an enemy with this arm, dealing damage, redirecting the enemy, and reversing player rotation
+         *      Conditions: Player must COUNTER enemy AGAINST direction of rotation (from back)
+         *      Notes: Will affect every enemy currently intercepted by this arm
+         */
+
+
+    }
+
+//==|ADDITIONAL FUNCTIONS|==----------------------------------------------------------------------------------------------
+    public void SetSide(Direction side)
+    {
+        //Description: Sets which side this arm is on and updates visual/mechanical elements to match selection
+
+        //Initializations & Validations:
+        Vector3 currentScale = transform.localScale; //Save current scale values
+
+        //Apply Side-Specific Settings:
+        if (side == Direction.Left) //If arm side is being set to LEFT...
+        {
+            currentScale.x = Mathf.Abs(currentScale.x); //Set X scale positive for left arm
+        }
+        else if (side == Direction.Right) //If arm side is being set to RIGHT...
+        {
+            currentScale.x = -Mathf.Abs(currentScale.x); //Set X scale negative for right arm
+        }
+
+        //Cleanup:
+        armSide = side; //Set arm side indicator to given side setting
+    }
+
+//==|BONEYARD|==----------------------------------------------------------------------------------------------------------
+    /* PLAYER MOVEMENT OVERRIDING:
+     * //Calculate Momentum Direction
+        int momentumDirection = 0; //Initialize variable to register which direction to trigger spin
+        if (intercept.direction == InterceptDirection.HeadOn) momentumDirection = -1; //Start with negative rotation for head-on intercept
+        else if (intercept.direction == InterceptDirection.Rearward) momentumDirection = 1; //Start with positive rotation for rearward intercept
+        if (armSide == Direction.Left) momentumDirection *= -1; //Reverse direction for left arm
+        //Apply to Player:
+        player.rotationMode = Entity_Player.RotationMode.Free; //Switch player rotation mode
+        player.momentumTier += momentumDirection; //Add found momentum to player momentum tier value
+        //Cleanup:
+        if (player.momentumTier == 0) player.rotationMode = Entity_Player.RotationMode.Controlled; //Return player rotation control if its momentum tier is now zero
+        if (Mathf.Abs(player.momentumTier) > player.physicsSettings.momentumTierVels.Length) //If new momentum tier is outside set range...
+        {
+            player.momentumTier = player.physicsSettings.momentumTierVels.Length * (int)Mathf.Sign(player.momentumTier); //Cap momentum tier at maximum value assigned in player physics settings
+        }
+     */
+    /* GRAPPLED ENEMY POSITION SNAPPING:
+      * //Update Position of Grappled Enemy:
+        if (grappledEnemy != null && !grappledEnemyAtTarget) //If this arm is currently grappling an enemy (and it is not yet in position)...
+        {
+            //Initializations & Validations:
+            Vector2 enemyPos = grappledEnemy.transform.localPosition; //Get local position of enemy
+            Vector2 targetPos = grabPoint.localPosition; //Get target position
+            float grappleProx = Vector2.Distance(enemyPos, targetPos); //Get distance between enemy and target
+            if (grappleProx < grappleSnapProx) //If grappled enemy is close enough to target position...
+            {
+                grappledEnemy.transform.position = grabPoint.transform.position; //Set grappled enemy position to exact target
+                grappledEnemyAtTarget = true; //Indicate that grappled enemy is now at target
+            }
+
+            //Move Enemy Toward Target Position:
+            Vector2 newEnemyPos = Vector2.Lerp(enemyPos, targetPos, grappleSnap * timeScale); //Get vector lerped between current and target enemy positions
+            grappledEnemy.transform.localPosition = newEnemyPos; //Apply new enemy position
+
+        }
+      */
+    /* INTERCEPT STUFF:
+     * 
+     * [System.Serializable] public class Intercept
+    {
+        //Description: Contains data about an active intercept between an Arm and an enemy
+
+        //Core Components:
+        public Equipment_Arm arm;   //The arm involved with this intercept
+        public NPC_Enemy enemy;     //The enemy involved with this intercept
+        public Collider2D collider; //The enemy's interception area
+        //Intercept Data:
+        public Vector2 vector;               //Describes the total velocity and direction of this intercept (in world space)
+        public float angle;                  //Angle (in degrees) between intercept vector and player local axis
+        public InterceptDirection direction; //The combat-relevant direction of this intercept
+        public float duration = 0;           //The duration of this intercept so far (in seconds)
+        public float proximity;              //The distance between center of enemy and intercepting arm's GrabPoint
+    }
+    public enum InterceptDirection //Describes which direction an intercept occurs relative to player
+    {
+        HeadOn,  //Intercept is a head-on collision between player and enemy
+        Neutral, //Intercept does not clearly prefer a given direction
+        Rearward //Intercept where enemy hits player from behind
+    }
+     * internal List<Intercept> intercepts = new List<Intercept>(); //This arm's current enemy intercepts
+     * 
+     * public void CheckForIntercepts()
     {
         //Description: If arm is available, this method checks for (and identifies) any intercepts with enemies
 
         //Validations & Initializations:
-        if (!equipped) return; //Do not check for intercepts if arm is not currently equipped
+        if (!equipped) return;             //Do not check for intercepts if arm is not currently equipped
+        if (grappledEnemy != null) return; //Do not check for intercepts if this arm is already grappling an enemy
+
         List<Collider2D> overlaps = new List<Collider2D>(); //Initialize list to store overlapping colliders
         ContactFilter2D filter = new ContactFilter2D(); //Initialize contact filter for intercept collider
 
@@ -157,16 +304,8 @@ public class Equipment_Arm : Equipment
             }
 
             //Update or Remove Intercept:
-            if (foundCollider) //UPDATE intercept, as collider was found successfully:
-            {
-                UpdateIntercept(thisIntercept); //Update intercept data
-            }
-            else //REMOVE intercept, as collider can no longer be found:
-            {
-                thisIntercept.enemy.intercepted = false; //Indicate that enemy is no longer intercepted
-                player.intercepts.Remove(thisIntercept); //Remove this intercept from player list
-                intercepts.RemoveAt(x); //Remove this intercept from this arm's list
-            }
+            if (foundCollider) UpdateIntercept(thisIntercept); //UPDATE intercept, as collider was found successfully
+            else               RemoveIntercept(thisIntercept); //REMOVE intercept, as collider can no longer be found
         }
 
         //Create New Intercepts:
@@ -176,6 +315,7 @@ public class Equipment_Arm : Equipment
             NPC_Enemy interceptedEnemy = overlaps[x].GetComponentInParent<NPC_Enemy>(); //Get enemy controller from overlap collider
             if (interceptedEnemy == null) return;     //Skip function if target does not have enemy controller
             if (interceptedEnemy.intercepted) return; //Skip function if target has already been intercepted by other arm
+            if (interceptedEnemy.grappled) return;    //Skip function if target is currently being grappled
 
             //Generate Intercept Core:
             Intercept newIntercept = new Intercept(); //Initialize new intercept
@@ -189,95 +329,69 @@ public class Equipment_Arm : Equipment
             player.intercepts.Add(newIntercept); //Add new intercept to player's list of interceptions
             interceptedEnemy.intercepted = true; //Indicate to enemycontroller that it has been intercepted
         }
-
-        //..Xx Sub-Methods xX...............................................................................
-        void UpdateIntercept(Intercept intercept)
-        {
-            //Description: Updates intercept data based on relationship between player and intercepted enemy
-
-            //Initializations & Validations:
-            Vector2 enemyVel = intercept.enemy.velocity; //Get enemy velocity vector
-            Vector2 armVel = localVelocity;              //Get arm velocity vector
-
-            //Find Intercept Vector:
-            intercept.vector = -(enemyVel + armVel); //Add velocity vectors to get vector of interception
-            Vector2 correctedVector = intercept.vector.Rotate(player.transform.rotation.z); //Get interception vector relative to absolute rotation of player
-            
-
-            //Cleanup:
-            intercept.duration += Time.fixedDeltaTime; //Update duration (CheckIntercepts should be run during FixedUpdate)
-
-            //..Xx Debuggers xX.................................................................................
-            //Debug.DrawLine(grabPoint.position, grabPoint.position + interceptVector.V3());
-        }
-
     }
-
-//==|INPUT EVENTS|==-----------------------------------------------------------------------------------------------
-    
-
-//==|COMBAT EVENTS|==----------------------------------------------------------------------------------------------
-    public virtual void Grapple()
+    void UpdateIntercept(Intercept intercept)
     {
-        /*  GRAPPLE: Catch an enemy, subduing it and allowing you to use its momentum for other abilities
-         *      Conditions: Player must COUNTER INTO enemy direction of travel (from front or back)
-         */
-
-
-    }
-    public virtual void Release()
-    {
-        /*  RELEASE: Release a grappled enemy, doing no damage to it and leaving player vulnerable to counterattack
-         *      Conditions: Player DOES NOT RELEASE enemy within given grapple time for that intercept
-         */
-
-
-    }
-    public virtual void Throw()
-    {
-        /*  THROW: Throw a grappled enemy, incapacitating it and turning it into a projectile
-         *      Conditions: Player RELEASES counter button with a grappled enemy in corresponding arm
-         */
-
-
-    }
-    public virtual void Clothesline()
-    {
-        /*  CLOTHESLINE: Swipe an enemy with this arm, dealing damage to it while preserving its direction of motion
-         *      Conditions: Player must COUNTER enemy AGAINST direction of rotation (from front)
-         */
-
-
-    }
-    public virtual void Backhand()
-    {
-        /*  BACKHAND: Strike an enemy with this arm, dealing damage, redirecting the enemy, and reversing player rotation
-         *      Conditions: Player must COUNTER enemy AGAINST direction of rotation (from back)
-         */
-
-
-    }
-
-//==|ADDITIONAL ARM FUNCTIONS|==------------------------------------------------------------------------------------------
-    public void SetSide(Direction side)
-    {
-        //Description: Sets which side this arm is on and updates visual/mechanical elements to match selection
+        //Description: Updates intercept data based on relationship between player and intercepted enemy
 
         //Initializations & Validations:
-        Vector3 currentScale = transform.localScale; //Save current scale values
+        Vector2 enemyVel = intercept.enemy.velocity; //Get enemy velocity vector
+        Vector2 armVel = localVelocity;              //Get arm velocity vector
 
-        //Apply Side-Specific Settings:
-        if (side == Direction.Left) //If arm side is being set to LEFT...
-        {
-            currentScale.x = Mathf.Abs(currentScale.x); //Set X scale positive for left arm
-        }
-        else if (side == Direction.Right) //If arm side is being set to RIGHT...
-        {
-            currentScale.x = -Mathf.Abs(currentScale.x); //Set X scale negative for right arm
-        }
+        //Find Intercept Vector:
+        intercept.vector = -(enemyVel + armVel); //Add velocity vectors to get vector of interception
+        Vector2 correctedVector = intercept.vector.Rotate(player.transform.rotation.eulerAngles.z); //Get interception vector relative to absolute rotation of player
+        intercept.angle = Vector2.Angle(Vector2.down, correctedVector); //Get angle of intercept relative to player
+            
+        //Determine Intercept Type:
+        if (intercept.vector.magnitude < minInterceptVel && //If intercept velocity is not high enough...
+            player.rotationMode != Entity_Player.RotationMode.Free) //(make exception for when player is in free-spin mode)...
+            { intercept.direction = InterceptDirection.Neutral; }
+        else if (intercept.angle <= 90) //If intercept is coming from front...
+            { intercept.direction = InterceptDirection.HeadOn; }   //Indicate that intercept is head-on
+        else //If intercept is coming from behind...
+            { intercept.direction = InterceptDirection.Rearward; } //Indicate that intercept is rearward
 
         //Cleanup:
-        armSide = side; //Set arm side indicator to given side setting
+        intercept.duration += Time.fixedDeltaTime; //Update duration (CheckIntercepts should be run during FixedUpdate)
+        intercept.proximity = Vector2.Distance(grabPoint.position, intercept.enemy.transform.position); //Update proximity
+
+        //..Xx Debuggers xX.................................................................................
+        //Debug.DrawLine(grabPoint.position, grabPoint.position + interceptVector.V3());
+        //Debug.Log("Intercept Angle = " + intercept.angle);
     }
+    void RemoveIntercept(Intercept intercept)
+    {
+        //Description: Clears intercept from all lists and removes contingencies with other controllers
+
+        intercept.enemy.intercepted = false; //Indicate that enemy is no longer intercepted
+        player.intercepts.Remove(intercept); //Remove this intercept from player list
+        intercepts.Remove(intercept);        //Remove this intercept from this arm's list
+    }
+    void RemoveAllIntercepts()
+    {
+        //Description: Clears all intercepts from this arm from all lists, and removes contingencies with other controllers
+
+        foreach (Intercept intercept in intercepts) //Parse through list of intercepts...
+        {
+            intercept.enemy.intercepted = false; //Indicate that enemy is no longer intercepted
+        }
+        player.intercepts = otherArm.intercepts; //Remove all of this arm's intercepts from gross intercept list
+        intercepts.Clear(); //Clear local intercept list
+    }
+     * 
+     * if (intercepts.Count == 0) return; //If arm has no intercepts, do nothing
+        if (armState != ArmState.Neutral) return; //If arm is not in its neutral state, do nothing
+
+        //Get Closest Intercept:
+        Intercept closestIntercept = intercepts[0]; //Initialize closest intercept as first intercept in list
+        if (intercepts.Count > 1) foreach (Intercept thisIntercept in intercepts) //Parse through this arm's list of intercepts (if there is more than 1)...
+        {
+            if (thisIntercept.proximity < closestIntercept.proximity) //If current intercept is closer than closest intercept...
+            {
+                closestIntercept = thisIntercept; //Make this intercept the new closest intercept
+            }
+        }
+     */
 
 }

@@ -12,7 +12,8 @@ public class Equipment : MonoBehaviour
     //CLASSES, ENUMS & STRUCTS:
 
     //OBJECTS & COMPONENTS:
-    internal Entity_Player player; //Player controller script (if this equipment is currently equipped)
+    internal Entity_Player player;  //Player controller script (if this equipment is currently equipped)
+    internal TimeKeeper timeKeeper; //Unifying time controller
 
     //VARIABLES:
     internal bool equipped = false; //Whether or not this piece of equipment is currently equipped
@@ -40,7 +41,8 @@ public class Equipment : MonoBehaviour
 
         //Find Equipment Parent:
         player = gameObject.GetComponentInParent<Entity_Player>(); //Try to find player script in parent
-        
+        timeKeeper = GameObject.FindGameObjectWithTag("GameMaster").GetComponent<TimeKeeper>(); //Attempt to get TimeKeeper
+
         //Initialization Variants:
         if (player != null) //PLAYER INIT: If equipment is attached to player...
         {
@@ -49,6 +51,12 @@ public class Equipment : MonoBehaviour
         else //UNSUCCESSFUL INIT: If equipment init state has not been accounted for...
         {
             Debug.LogError(name + " could not be initialized. Is parent missing?"); //Log error
+        }
+
+        //Component Contingencies:
+        if (timeKeeper == null) //If time keeper script could not be found...
+        {
+            Debug.LogError(name + " could not find TimeKeeper."); //Log error
         }
 
     }

@@ -28,7 +28,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1919903161233681688}
-  m_RootOrder: 1
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2779372599254416778
 GameObject:
@@ -41,7 +41,6 @@ GameObject:
   - component: {fileID: 1919903161233681688}
   - component: {fileID: 6616930310950120309}
   - component: {fileID: 7848122202654521180}
-  - component: {fileID: 8397025267059251874}
   m_Layer: 0
   m_Name: TestClaw
   m_TagString: Untagged
@@ -60,6 +59,7 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
+  - {fileID: 3784421468280787588}
   - {fileID: 4560204459732560884}
   - {fileID: 991188724804233498}
   m_Father: {fileID: 0}
@@ -128,29 +128,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 717eddbfa49d62e4389c2ebf097c434d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  reachField: {fileID: 8397025267059251874}
+  reachField: {fileID: 2349673477470669247}
   grappleHoldPos: {fileID: 4560204459732560884}
   grabPoint: {fileID: 991188724804233498}
   otherArm: {fileID: 0}
-  grappleTimeMod: 1
-  grappleSnap: 0.3
+  grappleSnap: 0.25
+  grappleSnapProx: 0.001
+  minInterceptVel: 2.5
   armSide: 0
---- !u!58 &8397025267059251874
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2779372599254416778}
-  m_Enabled: 1
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_UsedByComposite: 0
-  m_Offset: {x: -0.10754052, y: 0.0023079515}
-  serializedVersion: 2
-  m_Radius: 0.24307856
 --- !u!1 &8319928396042743709
 GameObject:
   m_ObjectHideFlags: 0
@@ -179,5 +164,52 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1919903161233681688}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &9030140355325376640
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3784421468280787588}
+  - component: {fileID: 2349673477470669247}
+  m_Layer: 0
+  m_Name: Reachfield
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3784421468280787588
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9030140355325376640}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.049, y: 0.02, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1919903161233681688}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!58 &2349673477470669247
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9030140355325376640}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  serializedVersion: 2
+  m_Radius: 0.2
