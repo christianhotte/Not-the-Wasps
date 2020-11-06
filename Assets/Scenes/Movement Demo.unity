@@ -251,7 +251,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 0.17
+  m_Radius: 0.12
 --- !u!1 &320653123
 GameObject:
   m_ObjectHideFlags: 0
@@ -329,7 +329,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 320653123}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.037, y: 0.842, z: 0}
+  m_LocalPosition: {x: -1.801, y: 1.295, z: 0}
   m_LocalScale: {x: 1.2, y: 1.2, z: 1.2}
   m_Children:
   - {fileID: 23226777}
@@ -354,6 +354,7 @@ MonoBehaviour:
   currentMass: 0
   massFactors: []
   dangerZone: {fileID: 23226778}
+  combatStatus: 0
 --- !u!1 &477816333
 GameObject:
   m_ObjectHideFlags: 0
@@ -1321,15 +1322,15 @@ MonoBehaviour:
     - serializedVersion: 3
       time: 0
       value: 1
-      inSlope: -0.0097265635
-      outSlope: -0.0097265635
+      inSlope: -0.023317706
+      outSlope: -0.023317706
       tangentMode: 0
       weightedMode: 2
       inWeight: 0
-      outWeight: 0.60478723
+      outWeight: 0.50705487
     - serializedVersion: 3
       time: 1
-      value: 0.2
+      value: 0.05
       inSlope: -2.1016448
       outSlope: -2.1016448
       tangentMode: 0
@@ -1355,7 +1356,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 0.6
+  m_Radius: 0.8
 --- !u!58 &1472778585
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -1371,7 +1372,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 1
+  m_Radius: 1.3
 --- !u!4 &1472778586
 Transform:
   m_ObjectHideFlags: 0

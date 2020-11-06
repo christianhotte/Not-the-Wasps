@@ -81,6 +81,7 @@ public class Entity_Player : Entity
     public AnimationCurve interceptSlowCurve;   //Curve representing time slow-down during an intercept (depending on where enemy is between intercept zones)
     public List<Intercept> intercepts;          //List of current intercepts between player and enemies
     internal bool canIntercept = true;          //Whether or not player can check for additional intercepts
+    internal bool intercepting = false;         //Whether or not player is currently intercepting at least one enemy
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void Update()
@@ -291,10 +292,11 @@ public class Entity_Player : Entity
         outerInterceptZone.OverlapCollider(filter, overlaps); //Populate list of detected intercept fields from enemy entities
 
         //UPDATE or REMOVE Existing Intercepts:
-        foreach (Intercept intercept in intercepts) //Iterate through list of all current intercepts...
+        for (int i = 0; i < intercepts.Count; i++) //Iterate through list of all current intercepts...
         {
             //Initialization & Validation:
-            bool foundCollider = false; //Initialize variable to indicate whether or not sweep has successfully found this intercept's collider
+            Intercept intercept = intercepts[i]; //Initialize shorthand for current intercept in list
+            bool foundCollider = false;          //Initialize variable to indicate whether or not sweep has successfully found this intercept's collider
             
             //Check List for Matching Collider:
             foreach (Collider2D collider in overlaps) //Iterate through list of currently-overlapping colliders
@@ -338,10 +340,13 @@ public class Entity_Player : Entity
         newIntercept.enemy = enemy;               //Set intercept enemy
         newIntercept.collider = enemy.dangerZone; //Set intercept collider
 
+        //Establish Controller Dependencies:
+        enemy.combatStatus = Entity_Enemy.CombatStatus.Intercepted; //Indicate to enemy that it has been intercepted
+        intercepting = true; //Indicate to player that it is now intercepting at least one enemy
+
         //Cleanup:
         UpdateIntercept(newIntercept); //Fill in all other, non-static variables relating to this intercept
         intercepts.Add(newIntercept);  //Add new intercept to list of current intercepts
-
     }
     private void UpdateIntercept(Intercept intercept)
     {
@@ -375,6 +380,12 @@ public class Entity_Player : Entity
     {
         //Description: Removes an intercept from list, and disconnects all necessary dependencies
 
+        //Remove Controller Dependencies:
+        if (intercepts.Count < 2) intercepting = false; //If this is the only intercept player has, indicate that it will no longer be intercepting after this one is removed
+        if (intercept.enemy.combatStatus == Entity_Enemy.CombatStatus.Intercepted) //If enemy combat status is INTERCEPTED...
+        { intercept.enemy.combatStatus = Entity_Enemy.CombatStatus.Default; } //Change enemy combat status back to default
+
+        //Cleanup:
         intercepts.Remove(intercept); //Remove intercept from list of intercepts
     }
     private void UpdateTimeScale()
@@ -389,19 +400,17 @@ public class Entity_Player : Entity
         foreach (Intercept intercept in intercepts) //Iterate through list of current intercepts...
         {
             //Get Time-Relevant Scaled Proximity Value:
+            float prox = intercept.proximity; //Get current proximity of intercept
             float maxDist = outerInterceptZone.radius; //Get the maximum proximity intercept could have
             float minDist = innerInterceptZone.radius; //Get the minimum proximity intercept could have
-            float scaledProx = HotteMath.Map(intercept.proximity, minDist, maxDist, 0, 1); //Get proximity scaled to player interception zones (time-relevant)
+            float scaledProx = HotteMath.Map(prox, minDist, maxDist, 1, 0); //Get proximity scaled to player interception zones (time-relevant)
             //Get Target TimeScale of Intercept:
             float newTargetTimeScale = interceptSlowCurve.Evaluate(scaledProx); //Get this intercept's potential target timescale based on slow-mo curve setting
-            if (newTargetTimeScale < targetTimeScale) targetTimeScale = newTargetTimeScale; //Use whichever proposed target timescale is slower (closest intercept)
+            targetTimeScale = Mathf.Min(newTargetTimeScale, targetTimeScale); //Use whichever proposed target timescale is slower (closest intercept)
         }
 
         //Adjust Global Timescale:
-        if (Mathf.Approximately(currentTimeScale, targetTimeScale)) //If timescale is not already approximately at target...
-        {
-            timeKeeper.timeScale = targetTimeScale; //Set timescale to target
-        }
+        timeKeeper.timeScale = targetTimeScale; //Set timescale to target
     }
 
 }

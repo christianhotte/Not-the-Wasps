@@ -11,9 +11,10 @@ public class Entity_Enemy : Entity
     //CLASSES, ENUMS & STRUCTS:
     public enum CombatStatus //Options for enemy status regarding effects from player combat actions
     {
-        Default,   //Standard combat status, enemy is not impaired
-        Grappled,  //Enemy is grappled by player for a short duration. It cannot move and usually cannot attack
-        Projectile //Enemy has just been thrown or struck by player. It cannot affect its trajectory and will deal damage to other enemies it hits
+        Default,     //Standard combat status, enemy is not impaired or intercepted
+        Intercepted, //Enemy is within range of player, player may react to enemy but otherwise all is normal for enemy
+        Grappled,    //Enemy is grappled by player for a short duration. It cannot move and usually cannot attack
+        Projectile   //Enemy has just been thrown or struck by player. It cannot affect its trajectory and will deal damage to other enemies it hits
     }
 
     //OBJECTS & COMPONENTS:
