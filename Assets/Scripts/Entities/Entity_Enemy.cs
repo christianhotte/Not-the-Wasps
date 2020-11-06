@@ -9,16 +9,20 @@ public class Entity_Enemy : Entity
      */
 
     //CLASSES, ENUMS & STRUCTS:
-
+    public enum CombatStatus //Options for enemy status regarding effects from player combat actions
+    {
+        Default,   //Standard combat status, enemy is not impaired
+        Grappled,  //Enemy is grappled by player for a short duration. It cannot move and usually cannot attack
+        Projectile //Enemy has just been thrown or struck by player. It cannot affect its trajectory and will deal damage to other enemies it hits
+    }
 
     //OBJECTS & COMPONENTS:
     private Entity_Player player; //PlayerController script, needs to be known by enemies
     public Collider2D dangerZone; //Area which triggers player interception
 
     //VARIABLES:
-    [Header("Combat Status:")]
-    [ShowOnly] public bool intercepted = false; //Whether or not this enemy is currently in attack range
-    [ShowOnly] public bool grappled = false;    //Whether or not this enemy is currently being grappled by player
+    [Header("States:")]
+    public CombatStatus combatStatus; //Enemy status regarding player actions
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void Start()

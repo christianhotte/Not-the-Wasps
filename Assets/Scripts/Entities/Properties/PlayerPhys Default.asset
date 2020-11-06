@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PlayerPhys Default
   m_EditorClassIdentifier: 
   maxVelocity: 0.08
-  baseAccel: 0.4
+  baseAccel: 0.3
   idleDecel: 0.1
   decelSnapVel: 0.001
   mouseTurnStiffness: 0.1

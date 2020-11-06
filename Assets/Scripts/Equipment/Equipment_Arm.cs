@@ -22,29 +22,16 @@ public class Equipment_Arm : Equipment
 
     //OBJECTS & COMPONENTS:
     [Header("Components:")]
-    public Collider2D reachField;    //Collider determining this arm's reach
-    public Transform grappleHoldPos; //Transform indicating where enemies will snap to when grappled
-    public Equipment_Arm otherArm;   //The player's other arm (if this arm is equipped to a player with two arms)
+    public Equipment_Arm otherArm; //The player's other arm (if this arm is equipped to a player with two arms)
 
     //VARIABLES:
-    //[Header("Stats:")]
-
-    [Header("Mechanical Settings:")]
-    [Range(0, 1)] public float grappleSnap; //Determines how quickly enemy snaps to known position when grappled
-    public float grappleSnapProx;           //Determines how close enemy must be to grabPoint for it to snap to designated position (when grappled)
-    public float minInterceptVel;           //Determines the minimum total velocity an intercept must have to register as directional (as opposed to neutral)
-
+    [Header("Stats:")]
+    public float rangeMultiplier; //Sets how much this arm increases or decreases player intercept range
+    [Space()]
     //Runtime Status Variables:
-    public Direction armSide; //Which side this arm is meant to be equipped on
+    public Direction armSide;  //Which side this arm is meant to be equipped on
     private ArmState armState; //This arm's current combat state
     private Entity_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
-
-//==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
-    public override void FixedUpdate()
-    {
-        base.FixedUpdate(); //Call base fixedUpdate function
-        UpdatePhysics(); //Update physics-related data on this piece of equipment
-    }
 
 //==|CORE ARM FUNCTIONS|==-----------------------------------------------------------------------------------------
     public override void Initialize()
@@ -99,7 +86,7 @@ public class Equipment_Arm : Equipment
 
     }
 
-//==|COMBAT EVENTS|==----------------------------------------------------------------------------------------------
+//==|COMBAT EVENTS + MANEUVERS|==----------------------------------------------------------------------------------
     public virtual void Grapple(Entity_Enemy enemy)
     {
         /*  GRAPPLE: Catch an enemy, subduing it and allowing you to use its momentum for other abilities
@@ -110,10 +97,10 @@ public class Equipment_Arm : Equipment
         //Initialize Grapple:
         armState = ArmState.Grappling; //Indicate that this arm is now grappling an enemy
         grappledEnemy = enemy;         //Get grappled enemy's controller
-        grappledEnemy.grappled = true; //Indicate to enemy that it has been grappled
 
         //Override Enemy Movement:
-        grappledEnemy.currentMoveType = Entity.LocomotionType.Static; //Change enemy move mode to static
+        grappledEnemy.currentMoveType = Entity.LocomotionType.Static;    //Change enemy move mode to STATIC
+        grappledEnemy.combatStatus = Entity_Enemy.CombatStatus.Grappled; //Change enemy combat status to GRAPPLED
         grappledEnemy.velocity = Vector2.zero;      //Cancel enemy velocity
         grappledEnemy.angularVelocity = 0;          //Cancel enemy angular velocity
         grappledEnemy.transform.parent = transform; //Make this arm enemy's parent
@@ -137,11 +124,11 @@ public class Equipment_Arm : Equipment
         if (armState != ArmState.Grappling) return false; //If arm is not currently grappling, abort release
 
         //Restore Enemy Movement:
-        grappledEnemy.currentMoveType = Entity.LocomotionType.Impulse; //Restore enemy movement state
+        grappledEnemy.currentMoveType = Entity.LocomotionType.Impulse;  //Restore enemy movement state
+        grappledEnemy.combatStatus = Entity_Enemy.CombatStatus.Default; //Restore enemy combat status
         grappledEnemy.transform.parent = null; //Remove enemy from this arm's list of children
 
         //Disconnect Variable Links:
-        grappledEnemy.grappled = false; //Indicate to enemy that it is no longer grappled
         grappledEnemy = null;           //Forget grappled enemy's controller
         armState = ArmState.Neutral;    //Indicate that this arm has returned to neutral position
 
@@ -159,7 +146,7 @@ public class Equipment_Arm : Equipment
         if (!Release()) return; //Run enemy release function, check if it executes. If not, abort this function
 
         //Set Enemy as Projectile:
-
+        grappledEnemy.combatStatus = Entity_Enemy.CombatStatus.Projectile; //Set enemy combat status to PROJECTILE
 
     }
     public virtual void Clothesline(Entity_Enemy[] enemies)

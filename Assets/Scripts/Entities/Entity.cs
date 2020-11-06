@@ -11,6 +11,19 @@ public class Entity : MonoBehaviour
      */             
 
     //CLASSES, ENUMS & STRUCTS:
+    [System.Serializable]
+    public class MassFactor
+    {
+        //Description: Item used to keep track of things affecting the mass of an entity
+
+        //Factor Data:
+        public float deltaMass = 0;  //The amount by which this factor adds to or subtracts from this entity's total mass
+        public float multiplier = 1; //The amount by which this factor multiplies an entity's overall mass
+
+        //Factor Retrieval:
+        public Object factorSource; //Pointer indicating the object from which this factor originates (may be used to retrieve this object)
+        public string factorTag;    //Simple tag indicating what type of factor this is (may be used to retrieve this object)
+    }
     public enum LocomotionType //Different methods an entity can use to move
     {
         Impulse, //IMPULSE: Standard locomotion system, uses acceleration variables to update motion regularly
@@ -20,12 +33,17 @@ public class Entity : MonoBehaviour
 
     //OBJECTS & COMPONENTS:
         //Core Components:
-        private TimeKeeper timeKeeper; //This scene's timeKeeper script
+        internal TimeKeeper timeKeeper; //This scene's timeKeeper script
 
     //VARIABLES:
         //Physics Variables:
-        internal Vector2 velocity = new Vector2(); //Current linear velocity vector in world space (does NOT indicate facing direction)
-        internal float angularVelocity = 0;        //Current angular velocity in world space (negative if counter-clockwise)
+        [Header("EntityPhysics - Velocity:")]
+        public Vector2 velocity = new Vector2();     //Current linear velocity vector in world space (does NOT indicate facing direction)
+        [ShowOnly] public float angularVelocity = 0; //Current angular velocity in world space (negative if counter-clockwise)
+        [Header("EntityPhysics - Mass:")]
+        public float baseMass;               //The base mass of this entity (without equipment or modifiers)
+        [ShowOnly] public float currentMass; //The current mass of this entity (modifiers included)
+        public List<MassFactor> massFactors; //List of factors contributing to this entity's total mass
         //Entity Settings:
         internal LocomotionType currentMoveType; //This entity's current movement type
 
@@ -59,7 +77,42 @@ public class Entity : MonoBehaviour
             Debug.LogError(name + " could not find TimeKeeper."); //Log error
         }
 
+        //Establish Starting Variables:
+        CalculateMass(); //Get initial mass calculation for this entity
+
     }
+    public void CalculateMass()
+    {
+        /*  Description: -Calculates this entity's mass based on base mass and other variable factors
+         *               -Finds this entity's current center of mass if applicable [NEEDS TO BE ADDED]
+         *               -EDITING NOTE: EXPAND WHEN NECESSARY (stuff in Equipment-Equip(), etc)
+         */
+
+        //Initializations & Validations:
+        if (massFactors.Count == 0) //If there are no outside factors affecting entity mass...
+        {
+            currentMass = baseMass; //Use base mass for current mass of entity
+            return; //End function early
+        }
+        float addMass = 0;  //Initialize variable to store additional mass from outside factors
+        float massMult = 1; //Initialize variable to store mass multipliers from outside factors
+
+        //Check Outside Factors:
+        foreach (MassFactor factor in massFactors) //Iterate through all factors affecting the mass of this entity
+        {
+            addMass += factor.deltaMass;   //Add additional mass from factor to total
+            massMult *= factor.multiplier; //Factor given mass multiplier into total
+        }
+
+        //Find Total Mass:
+        float totalMass = baseMass + addMass; //Get total mass without multipliers
+        totalMass *= massMult;                //Factor multipliers into total mass
+
+        //Cleanup:
+        currentMass = totalMass; //Apply current mass to total mass count
+    }
+
+//==|ENTITY MOVEMENT FUNCTIONS|==----------------------------------------------------------------------------------
     private void MoveEntity()
     {
         //Description: NPC-specific changes to base MoveEntity function (structured around locomotion types)
@@ -100,5 +153,4 @@ public class Entity : MonoBehaviour
 
 
     }
-
 }

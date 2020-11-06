@@ -13,23 +13,8 @@ public class Arm_TestClaw : Equipment_Arm
 
     //VARIABLES:
 
-//==|CORE LOOPS|==--------------------------------------------------------------------------------------------------------
-    public override void Start()
-    {
-        base.Start(); //Call base start function
-    }
 
-    public override void Update()
-    {
-        base.Update(); //Call base update function
-    }
-
-    public override void FixedUpdate()
-    {
-        base.FixedUpdate(); //Call base fixedUpdate function
-    }
-
-    //==|COMBAT ABILITIES|==--------------------------------------------------------------------------------------------------
+//==|COMBAT MANEUVER MODIFICATIONS|==-------------------------------------------------------------------------------------
     /*public override void Grapple(Intercept intercept)
     {
         base.Grapple(); //Call base method

@@ -7,8 +7,9 @@ using HotteStuff;
 
 public class Entity_Player : Entity
 {
-    /*  Description: Defines an entity controlled by a human player. Contains settings specific to player
-     *               character.  Contains core mechanical methods for combat and player movement
+    /*  Description: -Defines an entity controlled by a human player. Contains settings specific to player character
+     *               -Contains core mechanical methods for combat and player movement
+     *               -Contains settings, variables and methods for governing and reacting to "intercepts" between player and enemies
      */
 
     //CLASSES, ENUMS & STRUCTS:
@@ -19,34 +20,85 @@ public class Entity_Player : Entity
         public Vector2 moveDirection; //Linear movement input direction (usually normalized)
         public float spinDirection;   //Angular movement input value ((-1)-1)
     }
+    public struct MouseInput
+    {
+        //Description: Contains all data collected from mouse every Update tick
+
+
+    }
+    [System.Serializable]
+    public class Intercept
+    {
+        //Description: Describes an encounter between player and an enemy, during which player may react using combat abilities
+        /* NOTES: Tenets of interception:
+         *            -Interception is local to the player, and being intercepted has no direct effects on enemies or the environment
+         *            -Intercept detection is constant and broad. Intercepts should always be recorded to list, then ignored or acted upon as needed
+         *            -Interception fields are based on PLAYER AWARENESS vs ENEMY DISPLACEMENT. Ability ranges are not directly based off of player interception field
+         *            -Systems involving intercepts should always be built to handle multiple simultaneous interception cases, as this is central to combat
+         *            -The time-slowing effect of interception is a core combat mechanic, and is never modified or interrupted by enemies. It is always triggered by things that can hurt the player
+        */
+
+        //Actors:
+        public Entity_Enemy enemy;  //The enemy involved with this intercept
+        public Collider2D collider; //The enemy collider (on InterceptionFields layer) which triggered this intercept
+        [Space()]
+
+        //Spatial/Temporal Variables:
+        public Vector2 direction;  //Normalized vector representing the direction of motion in this intercept (accounting for enemy velocity, player velocity, and player rotation)
+        public float force;        //Amount of force exerted by this intercept (accounts for speed and weight of player and enemy)
+        public float proximity;    //How close player center is to closest point on enemy interception zone (in Unity units)
+        public float duration = 0; //The duration (in real-time) of this intercept so far
+        [Space()]
+
+        //Potential Maneuvers:
+            //NOTE: If an arm is given as NULL, that maneuver is not currently applicable to this intercept (or is not applicable)
+        internal Equipment_Arm grabArm;        //The arm the player will use for a grab maneuver
+        internal Equipment_Arm clotheslineArm; //The arm the player will use for a clothesline maneuver
+        internal Equipment_Arm backhandArm;    //The arm the player will use for a backhand maneuver
+        [Space()]
+
+        //State Settings:
+        public bool suspended = false; //Suspended intercepts will not be updated or removed, and cannnot be acted upon by combat events (ex. when an enemy is grappled)
+        public bool resolved = false;  //Resolved intercepts will be removed upon departure, and cannot be acted upon by combat events (also does not trigger time slow-down)
+    }
 
     //OBJECTS & COMPONENTS:
     private Camera mainCamera = null; //The scene's Main Camera component
+    [Header("External Settings Objects:")]
     public PlayerPhysicsProperties physicsSettings; //Player-specific physics and movement properties
 
     //VARIABLES:
     //Input Variables:
     private MoveInput moveInput; //The input information this entity is currently using
-    
 
     [Header("Equipment:")]
     public Equipment_Arm leftArm;  //Player's currently-equipped left arm
     public Equipment_Arm rightArm; //Player's currently-equipped right arm
-        
-    //[Header("Runtime Data:")]
+
+    [Header("Intercepts:")]
+    public CircleCollider2D outerInterceptZone; //Outer bounds where enemy proximity will trigger an intercept
+    public CircleCollider2D innerInterceptZone; //Inner bounds where interception slow-mo is at its greatest
+    public AnimationCurve interceptSlowCurve;   //Curve representing time slow-down during an intercept (depending on where enemy is between intercept zones)
+    public List<Intercept> intercepts;          //List of current intercepts between player and enemies
+    internal bool canIntercept = true;          //Whether or not player can check for additional intercepts
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void Update()
     {
         base.Update(); //Call base update function
-        GetMoveInput();   //Determine movement input variables
-        GetCombatInput(); //Determine combat input variables & subsequent events
+        GetMoveInput();  //Determine movement-related input variables
+        GetMouseInput(); //Determine mouse-related input variables
+
+        UpdateCombatEvents(); //Trigger new combat events and maintain existing ones as-needed
     }
 
     public override void FixedUpdate()
     {
-        UpdatePhysics(); //Update physics variables
         base.FixedUpdate(); //Call base FixedUpdate function
+        UpdatePhysics();       //Update physics variables
+        CheckIntercepts();     //Check and update intercepts
+        UpdateTimeScale();     //Update timescale based on intercepts
+        UpdateCombatVisuals(); //Update combat-related animations and UI
     }
 
 //==|CORE FUNCTIONS|==---------------------------------------------------------------------------------------------
@@ -66,7 +118,11 @@ public class Entity_Player : Entity
         }
         if (physicsSettings == null) //If player does not have physics settings assigned...
         {
-            Debug.LogError("Player is missing physics settings"); //Log error
+            Debug.LogError("Player is missing physics settings."); //Log error
+        }
+        if (innerInterceptZone == null || outerInterceptZone == null) //If player is missing interception colliders...
+        {
+            Debug.LogError("Player is missing interception zone.");
         }
 
         //Establish Starting Variables:
@@ -75,7 +131,7 @@ public class Entity_Player : Entity
     }
     private void GetMoveInput()
     {
-        //Description: Updates MoveInput variable in base class (using player inputActions)
+        //Description: Updates MoveInput variable for use by UpdatePhysics()
 
         //Initializations & Validations:
         MoveInput newMoveInput = new MoveInput(); //Declare variable for storing new input data
@@ -107,17 +163,11 @@ public class Entity_Player : Entity
             //Debug.Log("Mouse angle to player = " + rotationalInput.ToString()); //Check that angle of mouse input is correct
             //Debug.Log("Player rotation = " + transform.rotation.eulerAngles.z); //Check actual rotation of player
     }
-    private void GetCombatInput()
+    private void GetMouseInput()
     {
-        //Description: Parses combat input and calls specific functions in reaction to particular events/criteria
+        //Description: Updates MouseInput variable for use by UpdateCombatEvents() and menu navigation
 
-        //Initializations & Validations:
-        if (leftArm == null || rightArm == null) //If player is missing combat-necessary equipment
-        {
-            Debug.LogError("Player is missing arm equipment"); //Log error
-            return; //Skip remainder of function to prevent further errors
-        }
-        
+
     }
     private void UpdatePhysics()
     {
@@ -203,6 +253,155 @@ public class Entity_Player : Entity
             //Debug.Log("NewAngularVelocity = " + newAngVelocity); //Check newly-calculated angular velocity
             //Debug.Log("Angular Acceleration = " + actualAngAccel); //Check how much player is trying to accelerate based on input
 
+    }
+    private void UpdateCombatEvents()
+    {
+        /*  Description: -Triggers and updates combat events based on current intercepts and mouse input
+         *               -Updates the state of ongoing combat events relevant to player object
+         *               -DOES NOT update combat UI or physics, as those are done in FixedUpdate
+         */
+
+
+    }
+    private void UpdateCombatVisuals()
+    {
+        /*  Description: -Updates combat-related UI elements based on position of mouse, combat state, and enemy intercepts
+         *               -Updates player animations relating to combat (including equipment animations and VFX)
+         */
+
+
+    }
+
+//==|INTERCEPT METHODS|==------------------------------------------------------------------------------------------
+    private void CheckIntercepts()
+    {
+        /*  Description: -Looks for new intercepts between player and incoming enemies
+         *               -Checks for and removes old intercepts between player and outgoing enemies
+         *               -Updates current intercepts between player and intercepted enemies
+         */
+
+        //Validations & Initializations:
+        List<Collider2D> overlaps = new List<Collider2D>(); //Initialize list to store overlapping colliders
+        ContactFilter2D filter = new ContactFilter2D();     //Initialize contact filter for intercept collider
+
+        //Prime Collision Filter & Populate Overlap List:
+        filter.useDepth = false;   //Set filter to ignore depth (use 2D space)
+        filter.useTriggers = true; //Set filter to use triggers (all colliders involved should be triggers)
+        filter.SetLayerMask(LayerMask.GetMask("InterceptionFields")); //Set filter to mask out all colliders other than interception fields
+        outerInterceptZone.OverlapCollider(filter, overlaps); //Populate list of detected intercept fields from enemy entities
+
+        //UPDATE or REMOVE Existing Intercepts:
+        foreach (Intercept intercept in intercepts) //Iterate through list of all current intercepts...
+        {
+            //Initialization & Validation:
+            bool foundCollider = false; //Initialize variable to indicate whether or not sweep has successfully found this intercept's collider
+            
+            //Check List for Matching Collider:
+            foreach (Collider2D collider in overlaps) //Iterate through list of currently-overlapping colliders
+            {
+                if (collider == intercept.collider) //If this collider matches that of this intercept...
+                {
+                    foundCollider = true; //Indicate that this intercept's collider has been found
+                    break; //Stop looking for matching colliders
+                }
+            }
+
+            //Cleanup:
+            if (foundCollider) //If this intercept's collider was found in list of current collisions...
+            {
+                overlaps.Remove(intercept.collider); //Remove collider from list, simplifying future sweeps
+                UpdateIntercept(intercept); //Update this intercept, since continutity has been confirmed
+            }
+            else RemoveIntercept(intercept); //Otherwise, remove this intercept, since its collider has left player intercept zone
+        }
+
+        //CREATE New Intercepts:
+        foreach (Collider2D collider in overlaps) //For each unclaimed collider in overlaps...
+        {
+            Entity_Enemy interceptedEnemy = collider.GetComponentInParent<Entity_Enemy>(); //Get enemy controller from overlap collider
+            CreateIntercept(interceptedEnemy); //Create intercept with found enemy
+        }
+    }
+    private void CreateIntercept(Entity_Enemy enemy)
+    {
+        //Description: Creates a new intercept and adds it to list of existing intercepts, establishing necessary dependencies
+
+        //Initializations & Validations:
+        if (enemy == null) //If no enemy controller is given...
+        {
+            Debug.LogError("Attempted intercept without valid enemy."); //Log error
+            return; //Cancel method to prevent fatal errors
+        }
+
+        //Find Intercept Actors:
+        Intercept newIntercept = new Intercept(); //Initialize new intercept
+        newIntercept.enemy = enemy;               //Set intercept enemy
+        newIntercept.collider = enemy.dangerZone; //Set intercept collider
+
+        //Cleanup:
+        UpdateIntercept(newIntercept); //Fill in all other, non-static variables relating to this intercept
+        intercepts.Add(newIntercept);  //Add new intercept to list of current intercepts
+
+    }
+    private void UpdateIntercept(Intercept intercept)
+    {
+        //Description: Updates the real-time data in a known intercept
+
+        //Initialization & Validation:
+        if (intercept == null)
+        {
+            Debug.LogError("Player attempted to update null intercept."); //Log error
+            return; //Exit method to prevent fatal error
+        }
+        Entity_Enemy enemy = intercept.enemy; //Get shorthand for enemy controller
+
+        //Update Intercept Vector:
+        Vector2 enemyMomentum = enemy.velocity * enemy.currentMass; //Get total momentum of enemy
+        Vector2 playerMomentum = velocity * currentMass;            //Get total momentum of player
+        Vector2 interceptVector = enemyMomentum + playerMomentum;   //Get total momentum of intercept
+
+        //Update Intercept Proximity:
+        Vector2 interceptPoint = enemy.dangerZone.ClosestPoint(transform.position); //Get closest point to player center on enemy intercept field
+        float interceptProx = Vector2.Distance(interceptPoint, transform.position); //Get total distance between enemy intercept zone and player
+        
+        //Cleanup:
+        intercept.direction = interceptVector.normalized; //Set intercept direction
+        intercept.force = interceptVector.magnitude;      //Set intercept force
+        intercept.proximity = interceptProx;              //Set intercept proximity
+        intercept.duration += Time.deltaTime;             //Update intercept duration tracker
+
+    }
+    private void RemoveIntercept(Intercept intercept)
+    {
+        //Description: Removes an intercept from list, and disconnects all necessary dependencies
+
+        intercepts.Remove(intercept); //Remove intercept from list of intercepts
+    }
+    private void UpdateTimeScale()
+    {
+        //Description: Updates global timescale based on the proximity of current intercepts
+
+        //Initialization & Validation:
+        float currentTimeScale = timeKeeper.timeScale;    //Initialize shorthand variable for current timescale
+        float targetTimeScale = timeKeeper.baseTimeScale; //Initialize timescale target at the designated base for this scene
+
+        //Check Intercept Proximities:
+        foreach (Intercept intercept in intercepts) //Iterate through list of current intercepts...
+        {
+            //Get Time-Relevant Scaled Proximity Value:
+            float maxDist = outerInterceptZone.radius; //Get the maximum proximity intercept could have
+            float minDist = innerInterceptZone.radius; //Get the minimum proximity intercept could have
+            float scaledProx = HotteMath.Map(intercept.proximity, minDist, maxDist, 0, 1); //Get proximity scaled to player interception zones (time-relevant)
+            //Get Target TimeScale of Intercept:
+            float newTargetTimeScale = interceptSlowCurve.Evaluate(scaledProx); //Get this intercept's potential target timescale based on slow-mo curve setting
+            if (newTargetTimeScale < targetTimeScale) targetTimeScale = newTargetTimeScale; //Use whichever proposed target timescale is slower (closest intercept)
+        }
+
+        //Adjust Global Timescale:
+        if (Mathf.Approximately(currentTimeScale, targetTimeScale)) //If timescale is not already approximately at target...
+        {
+            timeKeeper.timeScale = targetTimeScale; //Set timescale to target
+        }
     }
 
 }
