@@ -83,6 +83,22 @@ public static class HotteDebug //--<<<|Expanded Debugging|>>>-------------------
         //Cleanup:
         return center; //Pass center through (in case user wants to stick this on the end of an already-working line)
     }
+    public static void DrawCircle(this Circle circle, int sides)
+    {
+        //USE: Extends Circle. Draws given circle in world space
+
+        //CREDIT: Created by Christian Hotte
+
+        DrawCircle(circle.pos, circle.radius, sides); //Use existing function to draw given circle
+    }
+    public static void DrawCircle(this Circle circle, int sides, Color color)
+    {
+        //USE: Extends Circle. Draws given circle in world space with chosen color
+
+        //CREDIT: Created by Christian Hotte
+
+        DrawCircle(circle.pos, circle.radius, sides, color); //Use existing function to draw given circle with desired color
+    }
     public static void DrawRect(this Rect rectangle, Color color)
     {
         //USE: Functions similarly to Debug.DrawLine except it draws a 2D rectangle (using given rect transform properties)
@@ -217,7 +233,61 @@ public static class HotteMath //--<<<|More Math|>>>-----------------------------
         }
         return total / count; //Return average of given values
     }
-    //Vector Angles & Rotation:
+    //Space:
+    public static bool IsWithinCircle(this Vector2 point, Circle circle)
+    {
+        //USE: Indicates whether or not given point is within given circle (in 2D coordinate space)
+
+        //CREDIT: Created by Christian Hotte (referencing work by various StackOverflow forums users: https://stackoverflow.com/questions/481144/equation-for-testing-if-a-point-is-inside-a-circle)
+    
+        float dist = Vector2.Distance(point, circle.pos); //Find distance between given point and center of given circle
+        return dist <= circle.radius; //Return whether or not given point is within one radius of given circle
+    }
+    //Angles:
+    public static bool AngleIsBetween(this float angle, float leftBound, float rightBound)
+    {
+        //USE: Determines whether or not the given angle (in degrees) is within the given bounds (left and right referring to clockwise and anti-clockwise respectively)
+
+        //CREDIT: Created by Christian Hotte
+
+        //Convert Angles to Common Range:
+        float a = angle.AngleToRange(0, 360);      //Get value for angle converted into 360-degree range
+        float l = leftBound.AngleToRange(0, 360);  //Get value for left bound converted into 360-degree range
+        float r = rightBound.AngleToRange(0, 360); //Get value for right bound converted into 360-degree range
+
+        //Rotate Angles to Prevent Wraparound Error:
+        a -= l; //Rotate original angle such that left bound would be at 0
+        r -= l; //Rotate right bound such that left bound would be at 0
+        a = a.AngleToRange(0, 360); //Convert angle back into 360-degree range, eliminating potential wraparound error
+        r = r.AngleToRange(0, 360); //Convert bound back into 360-degree range, eliminating potential wraparound error
+
+        //Cleanup:
+        if (a <= r) return true; //Knowing that angle is greater than leftbound (0 in current range), if angle is within right bound, return true
+        else return false;       //Otherwise, if angle is outside given bound, return false
+    }
+    public static float AngleToRange(this float angle, float rangeMin, float rangeMax)
+    {
+        //USE: Converts given angle into given range
+        //NOTE: Be careful using this with large numbers, as it contains while loops (I am aware this could be done better with modulo)
+
+        //CREDIT: Created by Christian Hotte
+
+        //Initializations & Validations:
+        float a = angle; //Initialize modifiable reference for angle
+        if (rangeMin >= rangeMax) //If given range minimum is larger than range maximum...
+        {
+            Debug.LogError("Bad range given for angle conversion."); //Log error
+            return a; //Return unmodified angle
+        }
+
+        //Convert Angle to Range:
+        while (a > rangeMax) a -= 360; //Modify angle until it falls within maximum given range
+        while (a < rangeMin) a += 360; //Modify angle until it falls within minimum given range
+
+        //Cleanup:
+        return a; //Return converted angle value
+    }
+    //Vectors:
     public static Vector2 Rotate(this Vector2 v, float degrees)
     {
         //USE: Extends Vector2. Rotates a given vector by the desired degrees (in float form)
@@ -310,7 +380,7 @@ public static class HotteFind //--<<<|Finding Things in Things|>>>--------------
     }
     public static GameObject FindInList(this List<GameObject> list, string n)
     {
-        //USE: Finds an object by name in a list (overflow for GameObject lists)
+        //USE: Finds an object by name in a list (overload for GameObject lists)
 
         //CREDIT: Created by Christian Hotte
 
@@ -327,7 +397,7 @@ public static class HotteFind //--<<<|Finding Things in Things|>>>--------------
     }
     public static GameObject FindInList(this GameObject[] list, string n)
     {
-        //USE: Finds an object by name in a list (overflow for Gameobject arrays)
+        //USE: Finds an object by name in a list (overload for Gameobject arrays)
 
         //CREDIT: Created by Christian Hotte
 
@@ -342,6 +412,115 @@ public static class HotteFind //--<<<|Finding Things in Things|>>>--------------
         }
         return foundItem; //Return result
     }
+    public static int IndexOf <T>(this T[] array, T item)
+    {
+        //USE: Finds the index of given item in given array, if item is contained in array (throws error and returns 0 if not)
+        //REDUNDANCY: This is meant to substitute a basic C# function. It may already be a thing elsewhere in Unity, but I couldn't find it
+        //NOTE: If used on array of structs (rather than classes), will return the FIRST index which matches the given item
+
+        //CREDIT: Created by Christian Hotte (referencing work from various Unity forums users including AndrewRyan and R1PFake)
+
+        //Initializations:
+        int foundIndex = 0; //Initialize variable to store found index (init at zero in case item is never found)
+        bool successful = false; //Initialize variable to confirm whether or not search for item was successful
+
+        //Search for Item:
+        for (int i = 0; i < array.Length; i++) //Iterate through given array...
+        {
+            if (array[i].Equals(item)) //If item found at this index is equal to given item...
+            {
+                foundIndex = i;    //Record index at which item was successfully found
+                successful = true; //Indicate that method was successful
+                break;             //Break loop and continue to cleanup
+            }
+        }
+
+        //Cleanup:
+        if (!successful) //If operation was unsuccessful...
+        {
+            Debug.LogWarning("Item not found in index."); //Log warning
+        }
+        return foundIndex; //Return found index, regardless of success
+    }
+    public static int IndexOf <T>(this T[] array, T item, bool enableWarning)
+    {
+        //USE: Finds the index of given item in given array, if item is contained in array (throws error and returns 0 if not)
+        //OVERLOAD: This allows the user to decide whether or not they want a warning when operation is unsuccessful (may be preferable in cases where this happens normally)
+        //REDUNDANCY: This is meant to substitute a basic C# function. It may already be a thing elsewhere in Unity, but I couldn't find it
+        //NOTE: If used on array of structs (rather than classes), will return the FIRST index which matches the given item
+
+        //CREDIT: Created by Christian Hotte (referencing work from various Unity forums users including AndrewRyan and R1PFake)
+
+        //Initializations:
+        int foundIndex = 0; //Initialize variable to store found index (init at zero in case item is never found)
+        bool successful = false; //Initialize variable to confirm whether or not search for item was successful
+
+        //Search for Item:
+        for (int i = 0; i < array.Length; i++) //Iterate through given array...
+        {
+            if (array[i].Equals(item)) //If item found at this index is equal to given item...
+            {
+                foundIndex = i;    //Record index at which item was successfully found
+                successful = true; //Indicate that method was successful
+                break;             //Break loop and continue to cleanup
+            }
+        }
+
+        //Cleanup:
+        if (!successful && enableWarning) //If operation was unsuccessful (and warning is enabled...
+        {
+            Debug.LogWarning("Item not found in index."); //Log warning
+        }
+        return foundIndex; //Return found index, regardless of success
+    }
 }
+//==|EXTRANEOUS STRUCTS|==-----------------------------------------------------------------------------------------------|
+    public struct Booloat //BOOL + FLOAT
+    {
+        //Component Variables:
+        public bool _bool;   //Bool component
+        public float _float; //Float component
+
+        //Constructors:
+        public Booloat(bool _bool, float _float) //Parameterized constructor
+        {
+            this._bool = _bool;   //Assign bool value
+            this._float = _float; //Assign float value
+        }
+    }
+    public struct Boolint //BOOL + INT
+    {
+        //Component Variables:
+        public bool _bool; //Bool component
+        public int _int;   //Float component
+
+        //Constructors:
+        public Boolint(bool _bool, int _int) //Parameterized constructor
+        {
+            this._bool = _bool; //Assign bool value
+            this._int = _int;   //Assign int value
+        }
+    }
+    public struct Circle //VECTOR2 + FLOAT
+    {
+        //Description: Defines a circle in 2D coordinate space
+
+        //Component Variables:
+        public Vector2 pos;  //Position of circle in 2D space
+        public float radius; //Radius of circle
+
+        //Constructors:
+        public Circle(Vector2 pos, float radius) //Parameterized constructor
+        {
+            this.pos = pos;       //Assign position value
+            this.radius = radius; //Assign radius value
+        }
+    }
 }
+
+//==|DEPRECATED|==-------------------------------------------------------------------------------------------------------|
+
+/*  
+ * 
+ */
 

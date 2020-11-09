@@ -16,8 +16,6 @@ MonoBehaviour:
   baseAccel: 0.3
   idleDecel: 0.1
   decelSnapVel: 0.001
-  mouseTurnStiffness: 0.1
-  maxControlAngVel: 600
   strafeVelFalloff:
     serializedVersion: 2
     m_Curve:
@@ -42,3 +40,6 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  mouseTurnStiffness: 0.1
+  maxControlAngVel: 600
+  minRotThreshold: 50

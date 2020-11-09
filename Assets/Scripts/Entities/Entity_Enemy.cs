@@ -25,22 +25,6 @@ public class Entity_Enemy : Entity
     [Header("States:")]
     public CombatStatus combatStatus; //Enemy status regarding player actions
 
-//==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
-    public override void Start()
-    {
-        base.Start(); //Call base method
-    }
-
-    public override void Update()
-    {
-        base.Update(); //Call base method
-    }
-
-    public override void FixedUpdate()
-    {
-        base.FixedUpdate(); //Call base method
-    }
-
 //==|CORE FUNCTIONS|==---------------------------------------------------------------------------------------------
     public override void Initialize()
     {

@@ -14,6 +14,8 @@ public class Equipment : MonoBehaviour
     //OBJECTS & COMPONENTS:
     internal Entity_Player player;  //Player controller script (if this equipment is currently equipped)
     internal TimeKeeper timeKeeper; //Unifying time controller
+    public Transform mountPoint;    //Reference point used to position this arm on player object (should be at player 0,0 when arm is mounted)
+    public EditorGizmoProperties gizmoSettings; //Unifying object for in-editor gizmos relating to equipment settings and properties
 
     //VARIABLES:
     internal bool equipped = false; //Whether or not this piece of equipment is currently equipped
@@ -57,6 +59,10 @@ public class Equipment : MonoBehaviour
         if (timeKeeper == null) //If time keeper script could not be found...
         {
             Debug.LogError(name + " could not find TimeKeeper."); //Log error
+        }
+        if (mountPoint == null) //If mount point was not assigned...
+        {
+            Debug.LogError(name + " does not have an assigned mount point."); //Log error
         }
 
     }

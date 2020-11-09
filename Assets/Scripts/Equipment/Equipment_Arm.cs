@@ -26,25 +26,41 @@ public class Equipment_Arm : Equipment
 
     //VARIABLES:
     [Header("Stats:")]
-    public float rangeMultiplier; //Sets how much this arm increases or decreases player intercept range
+    public AnimationCurve rangeExtensionCurve; //Curve representing how much range extends (in [value] degrees) based on angular velocity (in [t] degrees per second)
+    [MinMaxSlider(-180, 180)] public Vector2 grabRange;        //The range (in degrees) from which this arm can grab an enemy (when angular speed is at 0)
+    [MinMaxSlider(-180, 180)] public Vector2 clotheslineRange; //The range (in degrees) from which this arm can clothesline an enemy (when angular speed is at 0)
+    [MinMaxSlider(-180, 180)] public Vector2 backhandRange;    //The range (in degrees) from which this arm can backhand an enemy (when angular speed is at 0)
+    internal Vector2[] maneuverRanges = new Vector2[3];        //Initialize neat array to store trio of maneuver ranges (for easy parsing later)
     [Space()]
     //Runtime Status Variables:
-    public Direction armSide;  //Which side this arm is meant to be equipped on
-    private ArmState armState; //This arm's current combat state
-    private Entity_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
+    public Direction armSide;            //Which side this arm is meant to be equipped on
+    internal ArmState armState;          //This arm's current combat state
+    internal Entity_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
 
-//==|CORE ARM FUNCTIONS|==-----------------------------------------------------------------------------------------
+//==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
+    private void OnDrawGizmosSelected()
+    {
+        DrawManeuverRanges(); //Draw lines showing the ranges of maneuvers for easy editing
+    }
+
+    //==|CORE ARM FUNCTIONS|==-----------------------------------------------------------------------------------------
     public override void Initialize()
     {
+        //Early Init Functions:
+        SetSide(armSide); //Set arm side to given side at initialization
+
+        //Base Init:
         base.Initialize(); //Call base init function
 
-        //Adjust Arm Based on Side Setting:
-        SetSide(armSide); //Set arm side to given side at initialization
+        //Initialize Variables:
+        maneuverRanges = new Vector2[] { grabRange, clotheslineRange, backhandRange }; //Package individual maneuver range variables into neat array
+    
     }
     public override void Equip(Entity_Player targetPlayer)
     {
         base.Equip(targetPlayer); //Call base equip function
 
+        //Establish Controller Dependencies:
         if (armSide == Direction.Left) //Equip as LEFT ARM...
         {
             if (player.leftArm != null) //If this arm is REPLACING another...
@@ -72,26 +88,16 @@ public class Equipment_Arm : Equipment
             }
         }
 
-    }
-
-//==|UPKEEP METHODS|==---------------------------------------------------------------------------------------------
-    public void UpdatePhysics()
-    {
-        //Description: Updates physics variables relating to this piece of equipment
-
-        //Initializations & Validations:
-        float timeScale = timeKeeper.timeScale; //Get shorthand for current timescale
-
-        //Update Local Velocity:
+        //Move Arm to Position:
+        Vector2 posDifference = player.transform.position - mountPoint.position; //Find current difference in position between arm and player
+        transform.position += posDifference.V3(); //Move arm into position
 
     }
 
 //==|COMBAT EVENTS + MANEUVERS|==----------------------------------------------------------------------------------
     public virtual void Grapple(Entity_Enemy enemy)
     {
-        /*  GRAPPLE: Catch an enemy, subduing it and allowing you to use its momentum for other abilities
-         *      Conditions: Player must COUNTER INTO enemy direction of travel (from front or back)
-         *      Notes: Will only grapple the closest enemy to GrabPoint. Ignores other interceptions
+        /*  GRAPPLE: Catch an enemy, subduing it and allowing the player to throw it as a projectile
          */
 
         //Initialize Grapple:
@@ -106,7 +112,7 @@ public class Equipment_Arm : Equipment
         grappledEnemy.transform.parent = transform; //Make this arm enemy's parent
 
         //Override Player Movement:
-            
+        
 
         //..Xx Debuggers xX.................................................................................
         //Debug.Log(intercept.enemy.name + " successfully grappled!");
@@ -114,9 +120,6 @@ public class Equipment_Arm : Equipment
     public virtual bool Release()
     {
         /*  RELEASE: Release a grappled enemy, doing no damage to it and leaving player vulnerable to counterattack
-         *      Conditions: -Player DOES NOT RELEASE enemy within given grapple time
-         *                  -OR player attempts to throw enemy at low velocity
-         *      Notes: Returns false if function did not execute successfully, true if otherwise
          */
 
         //Initialization & Validation:
@@ -138,7 +141,6 @@ public class Equipment_Arm : Equipment
     public virtual void Throw()
     {
         /*  THROW: Throw a grappled enemy, incapacitating it and turning it into a projectile
-         *      Conditions: Player RELEASES counter button with a grappled enemy in corresponding arm
          */
 
         //Initial Release:
@@ -168,7 +170,7 @@ public class Equipment_Arm : Equipment
 
     }
 
-//==|ADDITIONAL FUNCTIONS|==----------------------------------------------------------------------------------------------
+//==|UTILITY FUNCTIONS|==----------------------------------------------------------------------------------------
     public void SetSide(Direction side)
     {
         //Description: Sets which side this arm is on and updates visual/mechanical elements to match selection
@@ -190,7 +192,46 @@ public class Equipment_Arm : Equipment
         armSide = side; //Set arm side indicator to given side setting
     }
 
-//==|BONEYARD|==----------------------------------------------------------------------------------------------------------
+//==|EDITOR FUNCTIONS|==-----------------------------------------------------------------------------------------
+    private void DrawManeuverRanges()
+    {
+        //Description: Draws arcs representing the ranges of grab, clothesline and backhand maneuvers (color coded)
+
+        //Initializations & Validations:
+        if (!gizmoSettings.enableRangeGizmos) return; //Cancel if range gizmos are not enabled
+        if (mountPoint == null) return; //Cancel if mountPoint is not included, in order to prevent fatal error
+        Vector2[] maneuverRanges = { grabRange, clotheslineRange, backhandRange }; //Package ranges into easily-parsed list
+        Vector2 lineOrigin = mountPoint.position; //Log position of mount point, from which range linecasts will originate
+        Vector2 baseTarget = Vector2.up * gizmoSettings.rangeGizmoLength; //Create vector as base reference for all gizmo line lengths
+        bool rightSide = Mathf.Sign(transform.localScale.x) == -1; //Initialize bool indicating which side this arm is on
+
+        //Display Each Range:
+        foreach (Vector2 range in maneuverRanges) //Parse through list of maneuver ranges...
+        {
+            //Initializations & Validations:
+            float minAngle = range.x; //Isolate minimum angle setting
+            float maxAngle = range.y; //Isolate maximum angle setting
+            if (minAngle >= maxAngle) continue; //Skip this iteration if settings are invalid (slider is not correctly adjusted)
+
+            //Get Line Targets:
+            Vector2 minTarget = baseTarget.Rotate(minAngle); //Initialize target as rotated variant of base vector
+            Vector2 maxTarget = baseTarget.Rotate(maxAngle); //Initialize target as rotated variant of base vector
+            if (rightSide) //If arm has been determined to be on the right side (based on transform, rather than internal settings which do not update until runtime)
+            {
+                minTarget = Vector2.Reflect(minTarget, Vector2.right); //Reflect vector across Y axis
+                maxTarget = Vector2.Reflect(maxTarget, Vector2.right); //Reflect vector across Y axis
+            }
+            minTarget = minTarget.Rotate(transform.rotation.eulerAngles.z) + lineOrigin; //Align vector with theoretical player center & adjust for current world rotation of arm
+            maxTarget = maxTarget.Rotate(transform.rotation.eulerAngles.z) + lineOrigin; //Align vector with theoretical player center & adjust for current world rotation of arm
+
+            //Draw Gizmos:
+            Gizmos.color = gizmoSettings.rangeGizmoColors[maneuverRanges.IndexOf(range)]; //Set color corresponding to current range
+            Gizmos.DrawLine(lineOrigin, minTarget); //Draw line for positive maneuver range
+            Gizmos.DrawLine(lineOrigin, maxTarget); //Draw line for negative maneuver range
+        }
+    }
+
+//==|BONEYARD|==-------------------------------------------------------------------------------------------------
     /* PLAYER MOVEMENT OVERRIDING:
      * //Calculate Momentum Direction
         int momentumDirection = 0; //Initialize variable to register which direction to trigger spin
