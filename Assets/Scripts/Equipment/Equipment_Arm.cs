@@ -12,7 +12,7 @@ public class Equipment_Arm : Equipment
      */
 
     //CLASSES, ENUMS & STRUCTS:
-    public enum ArmState //Describes what combat state an arm can be in
+    public enum ManeuverState //Describes which maneuver arm is currently executing
     {
         Neutral,       //Arm is not currently engaged in any combat maneuvers
         Grappling,     //Arm is currently grappling an enemy
@@ -33,17 +33,23 @@ public class Equipment_Arm : Equipment
     internal Vector2[] maneuverRanges = new Vector2[3];        //Initialize neat array to store trio of maneuver ranges (for easy parsing later)
     [Space()]
     //Runtime Status Variables:
-    public Direction armSide;            //Which side this arm is meant to be equipped on
-    internal ArmState armState;          //This arm's current combat state
-    internal Entity_Enemy grappledEnemy; //Enemy which this arm is currently grappling (if any)
+    public Direction armSide; //Which side this arm is meant to be equipped on
+    internal ManeuverState currentManeuver; //The maneuver this arm is currently executing (if any)
+    internal Entity_Player.Intercept maneuverIntercept; //Intercept data for whichever maneuver this arm is currently performing
 
-//==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
-    private void OnDrawGizmosSelected()
+    //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
+    public override void Update()
+    {
+        base.Update(); //Call base function
+
+        UpdateManeuverUI(); //Update any ongoing maneuvers
+    }
+    public void OnDrawGizmosSelected()
     {
         DrawManeuverRanges(); //Draw lines showing the ranges of maneuvers for easy editing
     }
 
-    //==|CORE ARM FUNCTIONS|==-----------------------------------------------------------------------------------------
+//==|CORE ARM FUNCTIONS|==-----------------------------------------------------------------------------------------
     public override void Initialize()
     {
         //Early Init Functions:
@@ -95,21 +101,26 @@ public class Equipment_Arm : Equipment
     }
 
 //==|COMBAT EVENTS + MANEUVERS|==----------------------------------------------------------------------------------
-    public virtual void Grapple(Entity_Enemy enemy)
+    public virtual void Grapple(Entity_Player.Intercept intercept)
     {
         /*  GRAPPLE: Catch an enemy, subduing it and allowing the player to throw it as a projectile
          */
 
         //Initialize Grapple:
-        armState = ArmState.Grappling; //Indicate that this arm is now grappling an enemy
-        grappledEnemy = enemy;         //Get grappled enemy's controller
+        player.grappling = true;                      //Indicate to player that it is now grappling
+        currentManeuver = ManeuverState.Grappling;    //Indicate that this arm is now grappling an enemy
+        maneuverIntercept = intercept;                //Set current maneuver intercept
+        Entity_Enemy enemy = maneuverIntercept.enemy; //Get shorthand for enemy being grappled
+
+        //Suspend Intercept Status:
+        intercept.suspended = true; //Suspend intercept (causing it to lose super status next UpdateIntercept)
 
         //Override Enemy Movement:
-        grappledEnemy.currentMoveType = Entity.LocomotionType.Static;    //Change enemy move mode to STATIC
-        grappledEnemy.combatStatus = Entity_Enemy.CombatStatus.Grappled; //Change enemy combat status to GRAPPLED
-        grappledEnemy.velocity = Vector2.zero;      //Cancel enemy velocity
-        grappledEnemy.angularVelocity = 0;          //Cancel enemy angular velocity
-        grappledEnemy.transform.parent = transform; //Make this arm enemy's parent
+        enemy.currentMoveType = Entity.LocomotionType.Static;    //Change enemy move mode to STATIC
+        enemy.combatStatus = Entity_Enemy.CombatStatus.Grappled; //Change enemy combat status to GRAPPLED
+        enemy.velocity = Vector2.zero;                           //Cancel enemy velocity
+        enemy.angularVelocity = 0;                               //Cancel enemy angular velocity
+        enemy.transform.parent = transform;                      //Make this arm enemy's parent
 
         //Override Player Movement:
         
@@ -117,40 +128,39 @@ public class Equipment_Arm : Equipment
         //..Xx Debuggers xX.................................................................................
         //Debug.Log(intercept.enemy.name + " successfully grappled!");
     }
-    public virtual bool Release()
+    internal virtual void Release()
     {
         /*  RELEASE: Release a grappled enemy, doing no damage to it and leaving player vulnerable to counterattack
          */
 
         //Initialization & Validation:
-        if (grappledEnemy == null) return false; //If arm does not have grappled enemy, abort release
-        if (armState != ArmState.Grappling) return false; //If arm is not currently grappling, abort release
+        Entity_Enemy enemy = maneuverIntercept.enemy; //Get shorthand for enemy being grappled
 
         //Restore Enemy Movement:
-        grappledEnemy.currentMoveType = Entity.LocomotionType.Impulse;  //Restore enemy movement state
-        grappledEnemy.combatStatus = Entity_Enemy.CombatStatus.Default; //Restore enemy combat status
-        grappledEnemy.transform.parent = null; //Remove enemy from this arm's list of children
-
-        //Disconnect Variable Links:
-        grappledEnemy = null;           //Forget grappled enemy's controller
-        armState = ArmState.Neutral;    //Indicate that this arm has returned to neutral position
+        enemy.currentMoveType = Entity.LocomotionType.Impulse;  //Restore enemy movement state
+        enemy.combatStatus = Entity_Enemy.CombatStatus.Default; //Restore enemy combat status
 
         //Cleanup:
-        return true; //Confirm that function executed successfully
+        EndGrapple(); //Clean up grapple variables
     }
-    public virtual void Throw()
+    internal virtual void Throw()
     {
         /*  THROW: Throw a grappled enemy, incapacitating it and turning it into a projectile
+         *      -ThrowVector: Vector describing the angle and force at which enemy will be thrown (compatible with GetThrowVector method)
          */
 
-        //Initial Release:
-        Entity_Enemy enemy = grappledEnemy; //Save grappled enemy controller before initial release
-        if (!Release()) return; //Run enemy release function, check if it executes. If not, abort this function
+        //Initialization & Validation:
+        Entity_Enemy enemy = maneuverIntercept.enemy; //Get shorthand for enemy being grappled
 
-        //Set Enemy as Projectile:
-        grappledEnemy.combatStatus = Entity_Enemy.CombatStatus.Projectile; //Set enemy combat status to PROJECTILE
+        //Set Enemy Movement:
+        enemy.currentMoveType = Entity.LocomotionType.Impulse;     //Set enemy movement state
+        enemy.combatStatus = Entity_Enemy.CombatStatus.Projectile; //Set enemy combat status to PROJECTILE
+        enemy.velocity = GetThrowVector(); //Apply current throw vector directly to enemy velocity
 
+        //Cleanup:
+        EndGrapple(); //Clean up grapple variables
     }
+    
     public virtual void Clothesline(Entity_Enemy[] enemies)
     {
         /*  CLOTHESLINE: Swipe an enemy with this arm, dealing damage to it while preserving its direction of motion
@@ -191,8 +201,71 @@ public class Equipment_Arm : Equipment
         //Cleanup:
         armSide = side; //Set arm side indicator to given side setting
     }
+    private void EndGrapple()
+    {
+        //Description: Cleans up all necessary variables and dependencies after an enemy grapple has been ended (by THROW or RELEASE)
 
-//==|EDITOR FUNCTIONS|==-----------------------------------------------------------------------------------------
+        //Unlink Enemy Transform:
+        maneuverIntercept.enemy.transform.parent = null; //Remove enemy from this arm's list of children
+
+        //Resolve Intercept Status:
+        maneuverIntercept.suspended = false; //Indicate that intercept is no longer suspended
+        maneuverIntercept.resolved = true;   //Indicate that intercept relating to this maneuver has been resolved
+
+        //Cleanup:
+        maneuverIntercept = null;    //Forget grappled enemy's intercept
+        currentManeuver = ManeuverState.Neutral; //Indicate that this arm has returned to neutral position
+        if (otherArm.currentManeuver != ManeuverState.Grappling) player.grappling = false; //Set player grappling state to false (after confirming with other arm)
+    }
+    private Vector2 GetThrowVector()
+    {
+        //Description: Determines the angle and force at which player can currently throw a grappled enemy (relative to world coordinate grid)
+
+        //Initializations & Validations:
+        if (maneuverIntercept == null) //If arm does not currently contain intercept data for an enemy...
+        {
+            Debug.LogError("Arm attempted to get throw direction for nonexistent intercept."); //Log error
+            return Vector2.zero; //Return blank vector
+        }
+        if (currentManeuver != ManeuverState.Grappling) //If arm is not currently grappling an enemy...
+        {
+            Debug.LogError("Arm attempted to get throw direction while not grappling."); //Log error
+            return Vector2.zero; //Return blank vector
+        }
+        Vector2 throwVector = Vector2.up; //Initialize vector to return after calculation
+
+        //Harvest Necessary Data:
+        Vector2 playerPosition = player.transform.position;                 //Get player position in world space
+        Vector2 enemyPosition = maneuverIntercept.enemy.transform.position; //Get enemy position in world space
+        float playerRotDirection = Mathf.Sign(player.angularVelocity);      //Get player direction of rotation
+
+        //Get Angle:
+        Vector2 enemyRelPos = enemyPosition - playerPosition;               //Get enemy position relative to position of player
+        float enemyRelAngle = Vector2.SignedAngle(Vector2.up, enemyRelPos); //Get angle between enemy and player in world space
+        float throwAngle = enemyRelAngle + (90 * playerRotDirection);       //Get tangent angle direction according to player rotation
+
+        //Get Force:
+        float throwForce = maneuverIntercept.force; //Get initial force from maneuver intercept
+
+        //Cleanup:
+        throwVector = throwVector.Rotate(throwAngle); //Apply calculated angle to final return vector
+        throwVector *= throwForce;                    //Apply calculated force to final return vector
+
+        return throwVector; //Return found vector
+    }
+    public void InitiateThrowSequence()
+    {
+        //Description: Begins automatic animation and motion sequence between triggering and activating throw event
+
+        //Initializations & Validations:
+        if (maneuverIntercept == null) return;                  //If arm has not been given a valid intercept, abort release
+        if (currentManeuver != ManeuverState.Grappling) return; //If arm is not currently grappling, abort throw
+
+        //[TEMP]:
+        Throw();
+    }
+
+    //==|EDITOR FUNCTIONS|==-----------------------------------------------------------------------------------------
     private void DrawManeuverRanges()
     {
         //Description: Draws arcs representing the ranges of grab, clothesline and backhand maneuvers (color coded)
@@ -228,6 +301,31 @@ public class Equipment_Arm : Equipment
             Gizmos.color = gizmoSettings.rangeGizmoColors[maneuverRanges.IndexOf(range)]; //Set color corresponding to current range
             Gizmos.DrawLine(lineOrigin, minTarget); //Draw line for positive maneuver range
             Gizmos.DrawLine(lineOrigin, maxTarget); //Draw line for negative maneuver range
+        }
+    }
+
+//==|GRAPHICS & UI|==--------------------------------------------------------------------------------------------
+    private void UpdateManeuverUI()
+    {
+        //Description: Updates effects and visuals related to ongoing maneuvers
+
+        switch (currentManeuver)
+        {
+            case ManeuverState.Grappling: //GRAPPLING: Player is currently holding an enemy
+                //Initializations & Validations:
+                Vector2 throwVector = GetThrowVector(); //Get current throw vector
+
+                //[TEMP] Draw Rangefinder:
+                Vector2 lineOrigin = maneuverIntercept.enemy.transform.position; //Get coordinate vector for line origin (in world space)
+                Debug.DrawRay(lineOrigin, throwVector.normalized * 100, Color.green); //Draw line representing throw vector
+
+                break;
+            case ManeuverState.Clotheslining: //CLOTHESLINING: Player is currently clotheslining an enemy
+                break;
+            case ManeuverState.Backhanding: //BACKHANDING: Player is currently backhanding an enemy
+                break;
+            default: //DEFAULT: Player is not executing a maneuver
+                break;
         }
     }
 

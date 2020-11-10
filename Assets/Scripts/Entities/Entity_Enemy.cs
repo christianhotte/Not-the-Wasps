@@ -25,7 +25,15 @@ public class Entity_Enemy : Entity
     [Header("States:")]
     public CombatStatus combatStatus; //Enemy status regarding player actions
 
-//==|CORE FUNCTIONS|==---------------------------------------------------------------------------------------------
+    //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
+    public override void FixedUpdate()
+    {
+        base.FixedUpdate(); //Call base function
+
+        UpdatePhysics(); //Update enemy physics
+    }
+
+    //==|CORE FUNCTIONS|==---------------------------------------------------------------------------------------------
     public override void Initialize()
     {
         //Description: Validates all objects specific to this controller (in addition to initial validation phase)
@@ -44,6 +52,12 @@ public class Entity_Enemy : Entity
         {
             Debug.LogError(name + " does not have an intercept field assigned."); //Log error
         }
+
+    }
+    private void UpdatePhysics()
+    {
+        //Description: Updates enemy physics properties based on behavior, settings, and environmental factors
+
 
     }
 

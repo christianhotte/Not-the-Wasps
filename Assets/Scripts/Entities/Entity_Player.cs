@@ -80,8 +80,8 @@ public class Entity_Player : Entity
 
     //VARIABLES:
     //Input Variables:
-    private MoveInput moveInput = new MoveInput();    //All input information from player directional control
-    private MouseInput mouseInput = new MouseInput(); //All input information from player mouse control
+    internal MoveInput moveInput = new MoveInput();    //All input information from player directional control
+    internal MouseInput mouseInput = new MouseInput(); //All input information from player mouse control
 
     [Header("Equipment:")]
     public Equipment_Arm leftArm;  //Player's currently-equipped left arm
@@ -96,6 +96,7 @@ public class Entity_Player : Entity
         internal bool canIntercept = true;       //Whether or not player can check for additional intercepts
         internal bool intercepting = false;      //Whether or not player is currently intercepting at least one enemy
         internal bool superIntercepting = false; //Whether or not one of player's intercepts is within player's inner interception zone
+        internal bool grappling = false;         //Whether or not player is currently grappling at least one enemy
 
 //==|CORE LOOPS|==-------------------------------------------------------------------------------------------------
     public override void Update()
@@ -113,7 +114,6 @@ public class Entity_Player : Entity
 
         UpdatePhysics();          //Update physics variables
         CheckIntercepts();        //Check and update intercepts
-        UpdateCombatVisuals();    //Update combat-related animations and UI
     }
 
 //==|CORE FUNCTIONS|==---------------------------------------------------------------------------------------------
@@ -231,10 +231,11 @@ public class Entity_Player : Entity
     }
     private void UpdatePhysics()
     {
-        //Description: Update player physics properties based on input, settings, and environmental factors
+        //Description: Updates player physics properties based on input, settings, and environmental factors
 
         //Initializations & Validations:
         if (superIntercepting) return; //During a super intercept, player loses direct control over character motion (drag also does not apply)
+        if (grappling) return;         //While grappling, player loses direct control over character motion
 
         //LINEAR VELOCITY:
             //Initialization & Validation:
@@ -319,20 +320,13 @@ public class Entity_Player : Entity
     }
     private void UpdateCombatEvents()
     {
-        /*  Description: -Triggers and updates combat events based on current intercepts and mouse input
+        /*  Description: -Triggers combat events based on current intercepts and mouse input
          *               -Updates the state of ongoing combat events relevant to player object
-         *               -DOES NOT update combat UI or physics, as those are done in FixedUpdate
          */
 
+        //[EDIT NOTE]: EVERYTHING HERE IS TEMPORARY
 
-    }
-    private void UpdateCombatVisuals()
-    {
-        /*  Description: -Updates combat-related UI elements based on position of mouse, combat state, and enemy intercepts
-         *               -Updates player animations relating to combat (including equipment animations and VFX)
-         */
-
-        //Draw Maneuver UI:
+        //Check For Combat Event Initiation:
         foreach (Intercept intercept in superIntercepts) //Parse through list of super-intercepts
         {
             //[TEMP] Draw Visualizer Gizmo:
@@ -341,8 +335,14 @@ public class Entity_Player : Entity
             {
                 if (mouseInput.worldPos.IsWithinCircle(enemySelectField))
                 {
+                    //Draw Temp Selection Field Gizmo:
                     enemySelectField.radius = 0.15f;
                     enemySelectField.DrawCircle(12, Color.white);
+                    //Check For Player Input:
+                    if (mouseInput.leftButton == ButtonState.Down)
+                    {
+                        intercept.grabArm.Grapple(intercept);
+                    }
                 }
                 else
                 {
@@ -352,6 +352,18 @@ public class Entity_Player : Entity
             else if (intercept.clotheslineArm != null || intercept.backhandArm != null)
             {
                 enemySelectField.DrawCircle(12, Color.gray);
+            }
+        }
+
+        //Ongoing Maneuvers:
+        if (grappling) //If player is currently grappling an enemy...
+        {
+            timeKeeper.timeScale = Mathf.Lerp(timeKeeper.timeScale, 0.4f, 0.1f); //Lerp timescale into grappling mode
+
+            if (mouseInput.leftButton == ButtonState.Up) //If left mouse button release is detected...
+            {
+                leftArm.InitiateThrowSequence();  //Initiate left arm throw sequence if applicable
+                rightArm.InitiateThrowSequence(); //Initiate right arm throw sequence if applicable
             }
         }
     }
@@ -397,7 +409,11 @@ public class Entity_Player : Entity
                 overlaps.Remove(intercept.collider); //Remove collider from list, simplifying future sweeps
                 UpdateIntercept(intercept); //Update this intercept, since continutity has been confirmed
             }
-            else RemoveIntercept(intercept); //Otherwise, remove this intercept, since its collider has left player intercept zone
+            else //If this intercept's collider was not found in list...
+            {
+                RemoveIntercept(intercept); //Remove intercept if not suspended
+            }
+                
         }
 
         //CREATE New Intercepts:
@@ -408,6 +424,7 @@ public class Entity_Player : Entity
         }
 
         //APPLY Intercept Effects:
+        if (grappling) return; //Skip time control function if player is grappling
         float targetTimeScale = timeKeeper.baseTimeScale; //Initialize timescale target at the designated base for this scene
         foreach (Intercept intercept in intercepts) //Parse through final list of intercepts for this tick...
         {
@@ -454,7 +471,8 @@ public class Entity_Player : Entity
             Debug.LogError("Player attempted to update null intercept."); //Log error
             return; //Exit method to prevent fatal error
         }
-        Entity_Enemy enemy = intercept.enemy; //Get shorthand for enemy controller
+        Entity_Enemy enemy = intercept.enemy;   //Get shorthand for enemy controller
+        float timeScale = timeKeeper.timeScale; //Get current time scale
 
         //Update Intercept Vector:
         Vector2 enemyMomentum = enemy.velocity * enemy.currentMass; //Get total momentum of enemy
@@ -466,10 +484,14 @@ public class Entity_Player : Entity
         float interceptProx = Vector2.Distance(interceptPoint, transform.position); //Get total distance between enemy intercept zone and player
 
         //Cleanup Basic Data:
-        intercept.direction = interceptVector.normalized; //Set intercept direction
-        intercept.force = interceptVector.magnitude;      //Set intercept force
-        intercept.proximity = interceptProx;              //Set intercept proximity
-        intercept.duration += Time.deltaTime;             //Update intercept duration tracker
+        if (!intercept.suspended) //If intercept is not suspended...
+        {
+            //NOTE: Suspension prevents these from updating because their value at moment of grapple is used to determine throw force
+            intercept.direction = interceptVector.normalized; //Set intercept direction
+            intercept.force = interceptVector.magnitude;      //Set intercept force
+        }
+        intercept.proximity = interceptProx;  //Set intercept proximity
+        intercept.duration += Time.fixedDeltaTime; //Update intercept duration tracker
 
         //Check Relative Proximity:
         float prox = intercept.proximity; //Get current proximity of intercept
